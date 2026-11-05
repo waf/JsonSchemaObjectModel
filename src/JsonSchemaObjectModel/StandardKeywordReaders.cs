@@ -31,8 +31,12 @@ public readonly partial struct JsonSchemaReadContext
         value.ValueKind == JsonValueKind.Number ? value.Clone() : throw Error("The value must be a number.");
 
     /// <summary>
-    /// Reads a non-negative integer. A number with a zero fractional part, for example <c>2.0</c>, is an integer.
+    /// Reads a non-negative integer. A number with a zero fractional part, for example <c>2.0</c> or <c>1e2</c>, is an integer.
     /// </summary>
+    /// <remarks>
+    /// The value must not be more than <see cref="ulong.MaxValue"/>. JSON Schema has no upper limit, but no real
+    /// length or count comes near this value.
+    /// </remarks>
     public ulong ReadNonNegativeInteger(JsonElement value)
     {
         if (value.ValueKind != JsonValueKind.Number)
@@ -40,17 +44,15 @@ public readonly partial struct JsonSchemaReadContext
             throw Error("The value must be a non-negative integer.");
         }
 
-        if (value.TryGetUInt64(out var integer))
+        var parts = JsonNumberParts.From(value);
+        if (parts.IsNegative || !parts.IsInteger)
         {
-            return integer;
+            throw Error("The value must be a non-negative integer.");
         }
 
-        if (value.TryGetDecimal(out var number) && number >= 0 && number <= ulong.MaxValue && decimal.Truncate(number) == number)
-        {
-            return (ulong)number;
-        }
-
-        throw Error("The value must be a non-negative integer.");
+        return parts.TryGetUInt64(out var integer)
+            ? integer
+            : throw Error($"The value is more than {ulong.MaxValue}, the largest non-negative integer that this library supports.");
     }
 
     /// <summary>
@@ -348,8 +350,11 @@ internal static class StandardKeywordReaders
 
     private static MultipleOfKeyword ReadMultipleOf(JsonElement value, JsonSchemaReadContext context)
     {
+        //  Read the sign from the text. A double makes a very small value such as 1e-400 into zero.
         var number = context.ReadNumber(value);
-        return number.GetDouble() > 0 ? new MultipleOfKeyword(number) : throw context.Error("The value must be greater than zero.");
+        return JsonNumberParts.From(number).Sign > 0
+            ? new MultipleOfKeyword(number)
+            : throw context.Error("The value must be greater than zero.");
     }
 
     private static VocabularyKeyword ReadVocabulary(JsonElement value, JsonSchemaReadContext context)

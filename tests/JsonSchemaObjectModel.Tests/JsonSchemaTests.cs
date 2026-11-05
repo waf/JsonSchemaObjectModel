@@ -150,6 +150,29 @@ public class JsonSchemaTests
     }
 
     [Theory]
+    [InlineData("""{"maxLength":2.0}""", 2UL)]
+    [InlineData("""{"maxLength":1e2}""", 100UL)]
+    [InlineData("""{"maxLength":1.5e1}""", 15UL)]
+    [InlineData("""{"maxLength":100e-2}""", 1UL)]
+    [InlineData("""{"maxLength":-0}""", 0UL)]
+    [InlineData("""{"maxLength":0e999999999999999999999}""", 0UL)]
+    [InlineData("""{"maxLength":18446744073709551615}""", ulong.MaxValue)]
+    [InlineData("""{"maxLength":1.8446744073709551615e19}""", ulong.MaxValue)]
+    public void Non_negative_integers_are_read_from_any_integer_form(string json, ulong expected)
+    {
+        Assert.Equal(expected, JsonSchema.Parse(json).GetKeyword<MaxLengthKeyword>()!.Value);
+    }
+
+    [Theory]
+    [InlineData("""{"multipleOf":1e-400}""")]
+    [InlineData("""{"multipleOf":0.000000000000000000000000000000000000001}""")]
+    [InlineData("""{"multipleOf":1e400}""")]
+    public void MultipleOf_accepts_positive_values_beyond_double_range(string json)
+    {
+        Assert.Equal(json, JsonSchema.Parse(json).ToJsonString());
+    }
+
+    [Theory]
     [InlineData("""{"minItems":-1}""", "/minItems")]
     [InlineData("""{"minItems":1.5}""", "/minItems")]
     [InlineData("""{"type":"text"}""", "/type")]
@@ -158,6 +181,11 @@ public class JsonSchemaTests
     [InlineData("""{"required":["a","a"]}""", "/required")]
     [InlineData("""{"allOf":[]}""", "/allOf")]
     [InlineData("""{"multipleOf":0}""", "/multipleOf")]
+    [InlineData("""{"multipleOf":-0.0}""", "/multipleOf")]
+    [InlineData("""{"multipleOf":-1e-400}""", "/multipleOf")]
+    [InlineData("""{"maxLength":-0.5}""", "/maxLength")]
+    [InlineData("""{"maxLength":18446744073709551616}""", "/maxLength")]
+    [InlineData("""{"maxLength":1e400}""", "/maxLength")]
     [InlineData("""{"properties":{"a/b":{"items":[true]}}}""", "/properties/a~1b/items")]
     [InlineData("""{"prefixItems":[true,{"not":1}]}""", "/prefixItems/1/not")]
     [InlineData("""{"$defs":{"a":{"type":"string","type":"number"}}}""", null)]

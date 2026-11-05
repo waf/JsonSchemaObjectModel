@@ -91,6 +91,7 @@ var serializerOptions = new JsonSerializerOptions { Converters = { new JsonSchem
 
 - Instance validation, output formats and format assertion.
 - `$ref` resolution. `FindSubschema` walks the document structure only.
+- Non-negative integers above `ulong.MaxValue` in `minLength`, `maxItems` and the other count keywords. They fail to parse.
 - Drafts other than 2020-12. A 2019-09 schema with an array-form `items` fails to parse.
 
 ## Development

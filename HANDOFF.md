@@ -233,7 +233,15 @@ Done:
 - A duplicate name in a map keyword is reported at its own location (`/properties/dish`), as soon as the reader meets it.
 - Recommendation 7: `For(...)` factories share common keyword instances.
 
-Deferred: recommendations 2 (`JsonNumber`), 5 (rewrite) and 6 (equality), finding 5 (a doc note only), finding 6.
+Deferred: recommendations 2 (`JsonNumber`), 5 (rewrite) and 6 (equality), finding 5 (a doc note only).
+
+## Follow-up 2 (2026-11-05)
+
+Small fixes:
+
+- `multipleOf` read its sign through a `double`, so `1e-400` failed as "not greater than zero". The reader and `MultipleOfKeyword` now read the sign from the JSON text, with the internal `JsonNumberParts`.
+- Non-negative integers are read from the JSON text. Any integer form works (`2.0`, `1e2`, `100e-2`). A value above `ulong.MaxValue` fails with a clear message. `AGENTS.md` and `README.md` record this limit as deliberate.
+- Finding 6: `SchemaReadException` stores its path segments as a struct, not as boxed objects.
 
 Corrections to this document:
 

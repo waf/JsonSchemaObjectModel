@@ -261,7 +261,7 @@ public sealed class MultipleOfKeyword : NumberValueKeyword
     public MultipleOfKeyword(JsonElement value)
         : base(value)
     {
-        if (!(GetDouble() > 0))
+        if (JsonNumberParts.From(Value).Sign <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(value), "The value must be greater than zero.");
         }

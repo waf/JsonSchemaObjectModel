@@ -205,8 +205,8 @@ internal sealed class SchemaReadException : JsonException
     private readonly string? keywordName;
     private readonly string detail;
 
-    //  The segments from the error up to the root. Index segments are boxed, but only when a parse fails.
-    private readonly List<object> segmentsFromLeaf = [];
+    //  The segments from the error up to the root.
+    private readonly List<PathSegment> segmentsFromLeaf = [];
 
     public SchemaReadException(string? keywordName, string detail)
         : base(detail)
@@ -215,9 +215,9 @@ internal sealed class SchemaReadException : JsonException
         this.detail = detail;
     }
 
-    public void AddParent(string name) => segmentsFromLeaf.Add(name);
+    public void AddParent(string name) => segmentsFromLeaf.Add(new(name, 0));
 
-    public void AddParent(int index) => segmentsFromLeaf.Add(index);
+    public void AddParent(int index) => segmentsFromLeaf.Add(new(null, index));
 
     public JsonException ToPublicException()
     {
@@ -225,12 +225,11 @@ internal sealed class SchemaReadException : JsonException
         for (var position = segmentsFromLeaf.Count - 1; position >= 0; position--)
         {
             builder.Append('/');
+            var (name, index) = segmentsFromLeaf[position];
             builder.Append(
-                segmentsFromLeaf[position] switch
-                {
-                    int index => index.ToString(CultureInfo.InvariantCulture),
-                    var name => ((string)name).Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal),
-                }
+                name is null
+                    ? index.ToString(CultureInfo.InvariantCulture)
+                    : name.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal)
             );
         }
 
@@ -238,6 +237,11 @@ internal sealed class SchemaReadException : JsonException
         var message = keywordName is null ? $"{detail} Location: '{location}'." : $"Invalid '{keywordName}' at '{location}': {detail}";
         return new JsonException(message, location, lineNumber: null, bytePositionInLine: null);
     }
+
+    /// <summary>
+    /// A property name, or an array index if the name is null.
+    /// </summary>
+    private readonly record struct PathSegment(string? Name, int Index);
 }
 
 internal static class JsonSchemaReader

@@ -15,7 +15,8 @@ Goals, in priority order:
    - The tests compare with `JsonElement.DeepEquals`.
    - All draft 2020-12 keywords are typed classes.
    - A keyword with no reader is kept as an `UnknownKeyword` that holds its JSON.
-   - Numbers are kept as JSON, so values beyond `decimal` and `double` survive.
+   - Numbers are kept as JSON, so values beyond `decimal` and `double` survive. Checks on numbers, such as `multipleOf` > 0, read the JSON text, not a `double`.
+   - One deliberate limit: the non-negative integer keywords (`minLength`, `maxItems`, ...) hold a `ulong`. A value above `ulong.MaxValue` fails to parse. No real length or count comes near it.
    - `type` keeps its string or array form.
 2. **Custom keywords and vocabularies are first class.** A caller registers a reader and gets typed keywords back. There is no global registry and no reflection.
 3. **Native AOT and trimming safe.** The library sets `IsAotCompatible`, and warnings are errors. Do not add reflection, `dynamic`, `Activator`, reflection-based `JsonSerializer` calls, or attribute scanning.
