@@ -11,8 +11,30 @@ namespace JsonSchemaObjectModel.Keywords;
 /// The JSON value is a string or an array of strings.
 /// The keyword keeps that form and the order, so the schema round-trips.
 /// </remarks>
-public sealed class TypeKeyword : IJsonSchemaKeyword
+public sealed class TypeKeyword : IJsonSchemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other)
+    {
+        var typed = (TypeKeyword)other;
+        return IsArray == typed.IsArray && Types.AsSpan().SequenceEqual(typed.Types.AsSpan());
+    }
+
+    int IKeywordValueEquality.GetValueHashCode()
+    {
+        if (!IsArray)
+        {
+            return JsonValueEquality.String(GetTypeName(Types[0]));
+        }
+
+        var hash = JsonValueEquality.StartArray();
+        foreach (var type in Types)
+        {
+            hash.Add(JsonValueEquality.String(GetTypeName(type)));
+        }
+
+        return JsonValueEquality.ArrayHash(hash, Types.Length);
+    }
+
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "type";
 
@@ -476,8 +498,14 @@ public sealed class MinPropertiesKeyword(ulong value) : NonNegativeIntegerKeywor
 }
 
 /// <summary>The <c>required</c> keyword.</summary>
-public sealed class RequiredKeyword : IJsonSchemaKeyword
+public sealed class RequiredKeyword : IJsonSchemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other) =>
+        Properties.AsSpan().SequenceEqual(((RequiredKeyword)other).Properties.AsSpan());
+
+    int IKeywordValueEquality.GetValueHashCode() =>
+        JsonValueEquality.StringArray(Properties);
+
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "required";
 
@@ -504,8 +532,38 @@ public sealed class RequiredKeyword : IJsonSchemaKeyword
 }
 
 /// <summary>The <c>dependentRequired</c> keyword.</summary>
-public sealed class DependentRequiredKeyword : IJsonSchemaKeyword
+public sealed class DependentRequiredKeyword : IJsonSchemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other)
+    {
+        var otherDependencies = ((DependentRequiredKeyword)other).Dependencies;
+        if (otherDependencies.Count != Dependencies.Count)
+        {
+            return false;
+        }
+
+        foreach (var (name, required) in Dependencies)
+        {
+            if (!otherDependencies.TryGetValue(name, out var otherRequired) || !required.AsSpan().SequenceEqual(otherRequired.AsSpan()))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    int IKeywordValueEquality.GetValueHashCode()
+    {
+        var sum = 0;
+        foreach (var (name, required) in Dependencies)
+        {
+            sum = unchecked(sum + JsonValueEquality.Property(JsonValueEquality.String(name), JsonValueEquality.StringArray(required)));
+        }
+
+        return JsonValueEquality.ObjectHash(sum, Dependencies.Count);
+    }
+
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "dependentRequired";
 

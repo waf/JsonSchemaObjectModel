@@ -75,6 +75,7 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
   - `StandardKeywordReaders.cs`: the draft 2020-12 readers, and the typed read helpers on `JsonSchemaReadContext`.
   - `SchemaMap.cs`: the immutable ordered map of named subschemas, for `properties`, `$defs` and the other map keywords.
   - `JsonNumber.cs`: the public JSON number type for `minimum`, `maximum`, `multipleOf` and the exclusive limits. Equality compares values (`1` equals `1.0`).
+  - `JsonValueEquality.cs`: the equality and hash rules for JSON values. `Keywords/KeywordEquality.cs` applies them to keywords.
   - `JsonNumberParts.cs`: the internal reader of number text (sign, significand, scale). Use it for checks and comparisons on numbers. Do not convert to `double`.
   - `Keywords/`: one class per keyword, grouped by vocabulary.
     - The base classes in `KeywordBases.cs` group keywords by value shape.
@@ -130,9 +131,17 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
     - `foreach` over a `SchemaMap` uses a struct enumerator.
     - `Keys` and `Values` are `readonly struct` views of the entry array, with struct enumerators. They are boxed only through `IEnumerable<T>`. Do not turn them back into cached classes: that adds a mutable field and an allocation.
 - **Escaping:** `ToJsonString` uses `JavaScriptEncoder.UnsafeRelaxedJsonEscaping` when the options have no encoder, so `pattern` values and non-ASCII text stay readable. `WriteTo` and the converter use the encoder of the caller's writer. Do not change that: the caller owns the writer.
+- **Equality:** `JsonSchema.Equals` is true if, and only if, the two schemas write equal JSON, as `JsonElement.DeepEquals` defines it.
+  - The order of keywords and object properties is not important. Numbers compare by value. Strings compare after unescaping.
+  - `true` and `{}` are not equal, and `"string"` and `["string"]` are not equal. The comparison is structural, not about validation.
+  - `JsonValueEquality.cs` holds the rules and the hash helpers. Numbers use `JsonNumberParts`, because `JsonElement.DeepEquals` throws for an exponent beyond `int`.
+  - Keywords of the same type compare their fields through the internal `IKeywordValueEquality`. Keywords of different types, and custom keywords, compare the JSON that they write.
+  - A typed keyword's hash code must be the hash code of the JSON that it writes. Then a typed keyword and an `UnknownKeyword` with the same JSON are equal with the same hash code. Build the hash with the `JsonValueEquality` helpers.
+  - `EqualityTests.Typed_and_untyped_parses_of_a_schema_are_equal_with_the_same_hash_code` checks this for every Test Suite schema. If you add a keyword with a new value shape, implement `IKeywordValueEquality` and run that test.
 - **Thread safety:** everything is immutable after construction, except these:
   - The lazy element caches on value keywords (`JsonValueKeyword`, `JsonValueArrayKeyword`). They are benign races: two threads can each create an element, and one is kept.
   - The thread-static writer cache in `JsonSchema.ToJsonString`.
+  - The hash code cache on `JsonSchema`. It is an `int`, and every thread computes the same value, so the race is benign.
   - Do not add another lazy cache without a reason. If you add one, add it to this list.
 - **The public API is pre-1.0.** Breaking changes are acceptable. Record them in `CHANGELOG.md`.
 

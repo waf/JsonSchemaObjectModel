@@ -256,3 +256,16 @@ Recommendation 2, `JsonNumber`:
 - Equality and hash codes compare values with `JsonNumberParts`, and agree with `JsonElement.DeepEquals`. `JsonElement.DeepEquals` throws for an exponent beyond `int`. `JsonNumber` has no such limit.
 - `TryGetInt64` accepts any integer form, for example `2.0`. `TryGetDouble` fails for a value too large for a double.
 - Allocation: a built number keyword is 56 B. Before, the builder also made a 144 B element for each number. A parsed number keyword is about 24 B larger, because `JsonNumber` is larger than `JsonElement`. The benchmark schema has no number keywords, so the benchmarks do not show this change.
+
+Recommendation 6, equality:
+
+- `JsonSchema` and `SchemaMap` implement `IEquatable<T>`. `JsonNumber` implements it too, with `==` and `!=`.
+- The rule: two schemas are equal if, and only if, they write equal JSON, as `JsonElement.DeepEquals` defines it. The order of keywords and properties is not important. `true` and `{}` are not equal.
+- A typed keyword and an `UnknownKeyword` with the same JSON are equal, with the same hash code. So parses with different registries compare correctly. Custom keywords compare by their written JSON.
+- `JsonSchema` keeps its hash code after the first call. `AGENTS.md` lists this cache under thread safety.
+- Cost: `GetHashCode` and `Equals` allocate nothing for parsed schemas with standard keywords.
+- Tests: every Test Suite schema is parsed typed and untyped, and the two must be equal with the same hash code. All pairs of schemas in each Test Suite file must agree with `DeepEquals`. A deliberately wrong `type` hash made 189 Test Suite cases fail, so the test finds such errors.
+- Not done: keyword classes do not override `Equals`. Only `JsonSchema`, `SchemaMap` and `JsonNumber` have value equality.
+
+Remaining: recommendation 5 (walk and rewrite), recommendation 4 (source generator, optional), raw emoji output (skip unless asked).
+

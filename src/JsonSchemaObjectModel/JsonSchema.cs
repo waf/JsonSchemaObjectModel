@@ -19,7 +19,7 @@ namespace JsonSchemaObjectModel;
 ///   To read custom keywords, add a <see cref="JsonSchemaConverter"/> with your own options.
 /// </remarks>
 [JsonConverter(typeof(JsonSchemaConverter))]
-public sealed class JsonSchema
+public sealed class JsonSchema : IEquatable<JsonSchema>
 {
     private const int MaxStackBytes = 1024;
 
@@ -27,6 +27,9 @@ public sealed class JsonSchema
     private static PooledJsonWriter? cachedWriter;
 
     private readonly ImmutableArray<IJsonSchemaKeyword> keywords;
+
+    //  The hash code, created on first use. 0 means "not created yet". A race between threads computes the same value.
+    private int hashCode;
 
     private JsonSchema(bool value)
     {
@@ -302,6 +305,86 @@ public sealed class JsonSchema
 
     /// <inheritdoc/>
     public override string ToString() => ToJsonString();
+
+    /// <summary>
+    /// Returns <see langword="true"/> if the two schemas write equal JSON.
+    /// </summary>
+    /// <remarks>
+    /// - JSON values are equal as in <see cref="JsonElement.DeepEquals"/>:
+    ///   - The order of keywords and of object properties is not important.
+    ///   - Numbers are equal if their values are equal, so <c>1</c> equals <c>1.0</c>.
+    ///   - Strings are compared after unescaping.
+    /// - The comparison is structural. It is not about validation. <c>true</c> and <c>{}</c> accept the same
+    ///   instances, but they are not equal, and <c>"type": "string"</c> is not equal to <c>"type": ["string"]</c>.
+    /// - A typed keyword equals an <see cref="Keywords.UnknownKeyword"/> with the same name and the same JSON.
+    ///   So two parses of the same JSON are equal also if they use different registries.
+    /// - A custom keyword is compared by the JSON that it writes. This is correct, but slower than a typed comparison.
+    /// </remarks>
+    public bool Equals([NotNullWhen(true)] JsonSchema? other)
+    {
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        if (other is null || BooleanValue != other.BooleanValue || keywords.Length != other.keywords.Length)
+        {
+            return false;
+        }
+
+        //  Do not compute a hash code only for this check. But if both are known and differ, the schemas differ.
+        if (hashCode != 0 && other.hashCode != 0 && hashCode != other.hashCode)
+        {
+            return false;
+        }
+
+        //  A schema has each keyword name only once, and the counts are equal. So if each keyword finds an equal
+        //  keyword with its name, the keywords match one to one.
+        foreach (var keyword in keywords)
+        {
+            var match = other.GetKeyword(keyword.Name);
+            if (match is null || !JsonSchemaObjectModel.Keywords.KeywordEquality.ValueEquals(keyword, match))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => Equals(obj as JsonSchema);
+
+    /// <summary>
+    /// Returns a hash code. Equal schemas have the same hash code. The schema keeps the value after the first call.
+    /// </summary>
+    public override int GetHashCode()
+    {
+        var hash = hashCode;
+        if (hash != 0)
+        {
+            return hash;
+        }
+
+        if (BooleanValue is { } value)
+        {
+            hash = JsonValueEquality.Boolean(value);
+        }
+        else
+        {
+            var sum = 0;
+            foreach (var keyword in keywords)
+            {
+                sum = unchecked(sum + JsonValueEquality.Property(JsonValueEquality.String(keyword.Name), JsonSchemaObjectModel.Keywords.KeywordEquality.ValueHash(keyword)));
+            }
+
+            hash = JsonValueEquality.ObjectHash(sum, keywords.Length);
+        }
+
+        //  0 means "not computed", so a real hash code of 0 is stored as 1.
+        hashCode = hash == 0 ? 1 : hash;
+        return hashCode;
+    }
 
     private static bool TryGetNamedSchema(ISubschemaMapKeyword map, ReadOnlySpan<char> token, [NotNullWhen(true)] out JsonSchema? schema) =>
         token.Contains('~')

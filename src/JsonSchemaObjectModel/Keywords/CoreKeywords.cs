@@ -89,8 +89,38 @@ public sealed class DefsKeyword(IEnumerable<KeyValuePair<string, JsonSchema>> sc
 /// <summary>
 /// The <c>$vocabulary</c> keyword. A meta-schema uses it to declare the vocabularies of its dialect.
 /// </summary>
-public sealed class VocabularyKeyword : IJsonSchemaKeyword
+public sealed class VocabularyKeyword : IJsonSchemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other)
+    {
+        var otherVocabularies = ((VocabularyKeyword)other).Vocabularies;
+        if (otherVocabularies.Count != Vocabularies.Count)
+        {
+            return false;
+        }
+
+        foreach (var (uri, required) in Vocabularies)
+        {
+            if (!otherVocabularies.TryGetValue(uri, out var otherRequired) || required != otherRequired)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    int IKeywordValueEquality.GetValueHashCode()
+    {
+        var sum = 0;
+        foreach (var (uri, required) in Vocabularies)
+        {
+            sum = unchecked(sum + JsonValueEquality.Property(JsonValueEquality.String(uri), JsonValueEquality.Boolean(required)));
+        }
+
+        return JsonValueEquality.ObjectHash(sum, Vocabularies.Count);
+    }
+
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "$vocabulary";
 
@@ -140,8 +170,14 @@ public sealed class VocabularyKeyword : IJsonSchemaKeyword
 /// <summary>
 /// A keyword with no registered reader. It keeps the value as JSON, so the schema round-trips.
 /// </summary>
-public sealed class UnknownKeyword : IJsonSchemaKeyword
+public sealed class UnknownKeyword : IJsonSchemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other) =>
+        JsonValueEquality.ElementEquals(Value, ((UnknownKeyword)other).Value);
+
+    int IKeywordValueEquality.GetValueHashCode() =>
+        JsonValueEquality.Element(Value);
+
     /// <summary>
     /// Creates the keyword.
     /// </summary>

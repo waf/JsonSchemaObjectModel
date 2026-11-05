@@ -123,6 +123,34 @@ internal readonly struct PrimitiveJsonValue
         }
     }
 
+    /// <summary>
+    /// Returns the hash code of the JSON that <see cref="WriteTo"/> writes. See <see cref="JsonValueEquality"/>.
+    /// </summary>
+    public int GetValueHashCode()
+    {
+        switch (kind)
+        {
+            case Kind.Null:
+                return JsonValueEquality.Null;
+            case Kind.True:
+                return JsonValueEquality.Boolean(true);
+            case Kind.False:
+                return JsonValueEquality.Boolean(false);
+            case Kind.String:
+                return JsonValueEquality.String(text!);
+            case Kind.Int64:
+                return JsonValueEquality.Number(JsonNumber.From(int64));
+            case Kind.Decimal:
+                return JsonValueEquality.Number(JsonNumber.From(decimalNumber));
+            case Kind.Double:
+                return JsonValueEquality.Number(JsonNumber.From(number));
+            default:
+                Span<char> chars = stackalloc char[36];
+                guid.TryFormat(chars, out var length);
+                return JsonValueEquality.String(chars[..length]);
+        }
+    }
+
     public JsonElement ToElement()
     {
         var buffer = new ArrayBufferWriter<byte>(32);

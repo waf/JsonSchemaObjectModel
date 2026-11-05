@@ -46,6 +46,10 @@ string? format = ownerEmail?.Format;                                            
 MinItemsKeyword? minItems = restaurantSchema.FindSubschema("/properties/menus")?.GetKeyword<MinItemsKeyword>();
 ```
 
+Two schemas are equal if they write equal JSON. The order of keywords and properties is not important, and numbers
+compare by value, so `{"maximum":1,"type":"number"}` equals `{"type":"number","maximum":1.0}`. A schema can be a
+dictionary key.
+
 `JsonSchema` has a System.Text.Json converter, so it works as a property of a serialized type,
 including with source-generated `JsonSerializerContext`s.
 

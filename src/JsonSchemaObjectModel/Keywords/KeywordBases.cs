@@ -8,8 +8,14 @@ namespace JsonSchemaObjectModel.Keywords;
 /// <summary>
 /// A keyword whose value is one subschema.
 /// </summary>
-public abstract class SingleSubschemaKeyword(JsonSchema schema) : ISingleSubschemaKeyword
+public abstract class SingleSubschemaKeyword(JsonSchema schema) : ISingleSubschemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other) =>
+        Schema.Equals(((SingleSubschemaKeyword)other).Schema);
+
+    int IKeywordValueEquality.GetValueHashCode() =>
+        Schema.GetHashCode();
+
     /// <inheritdoc/>
     public abstract string Name { get; }
 
@@ -23,8 +29,38 @@ public abstract class SingleSubschemaKeyword(JsonSchema schema) : ISingleSubsche
 /// <summary>
 /// A keyword whose value is a non-empty array of subschemas.
 /// </summary>
-public abstract class SubschemaArrayKeyword : ISubschemaArrayKeyword
+public abstract class SubschemaArrayKeyword : ISubschemaArrayKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other)
+    {
+        var otherSchemas = ((SubschemaArrayKeyword)other).Schemas;
+        if (otherSchemas.Length != Schemas.Length)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < Schemas.Length; index++)
+        {
+            if (!Schemas[index].Equals(otherSchemas[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    int IKeywordValueEquality.GetValueHashCode()
+    {
+        var hash = JsonValueEquality.StartArray();
+        foreach (var schema in Schemas)
+        {
+            hash.Add(schema.GetHashCode());
+        }
+
+        return JsonValueEquality.ArrayHash(hash, Schemas.Length);
+    }
+
     /// <summary>
     /// Creates the keyword. An <see cref="ImmutableArray{T}"/> is used without a copy.
     /// </summary>
@@ -66,8 +102,14 @@ public abstract class SubschemaArrayKeyword : ISubschemaArrayKeyword
 /// <summary>
 /// A keyword whose value is an object of named subschemas.
 /// </summary>
-public abstract class SubschemaMapKeyword : ISubschemaMapKeyword
+public abstract class SubschemaMapKeyword : ISubschemaMapKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other) =>
+        Schemas.Equals(((SubschemaMapKeyword)other).Schemas);
+
+    int IKeywordValueEquality.GetValueHashCode() =>
+        Schemas.GetHashCode();
+
     /// <summary>
     /// Creates the keyword. The order of <paramref name="schemas"/> is kept. A <see cref="SchemaMap"/> is used without a copy.
     /// </summary>
@@ -97,8 +139,14 @@ public abstract class SubschemaMapKeyword : ISubschemaMapKeyword
 /// <summary>
 /// A keyword whose value is a string.
 /// </summary>
-public abstract class StringValueKeyword(string value) : IJsonSchemaKeyword
+public abstract class StringValueKeyword(string value) : IJsonSchemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other) =>
+        string.Equals(Value, ((StringValueKeyword)other).Value, StringComparison.Ordinal);
+
+    int IKeywordValueEquality.GetValueHashCode() =>
+        JsonValueEquality.String(Value);
+
     /// <inheritdoc/>
     public abstract string Name { get; }
 
@@ -114,8 +162,14 @@ public abstract class StringValueKeyword(string value) : IJsonSchemaKeyword
 /// <summary>
 /// A keyword whose value is a boolean.
 /// </summary>
-public abstract class BooleanValueKeyword(bool value) : IJsonSchemaKeyword
+public abstract class BooleanValueKeyword(bool value) : IJsonSchemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other) =>
+        Value == ((BooleanValueKeyword)other).Value;
+
+    int IKeywordValueEquality.GetValueHashCode() =>
+        JsonValueEquality.Boolean(Value);
+
     /// <inheritdoc/>
     public abstract string Name { get; }
 
@@ -135,8 +189,14 @@ public abstract class BooleanValueKeyword(bool value) : IJsonSchemaKeyword
 /// The keyword keeps the number as a <see cref="JsonNumber"/>, so a value that does not fit <see cref="decimal"/>
 /// or <see cref="double"/> still round-trips.
 /// </remarks>
-public abstract class NumberValueKeyword(JsonNumber value) : IJsonSchemaKeyword
+public abstract class NumberValueKeyword(JsonNumber value) : IJsonSchemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other) =>
+        Value == ((NumberValueKeyword)other).Value;
+
+    int IKeywordValueEquality.GetValueHashCode() =>
+        JsonValueEquality.Number(Value);
+
     /// <inheritdoc/>
     public abstract string Name { get; }
 
@@ -152,8 +212,14 @@ public abstract class NumberValueKeyword(JsonNumber value) : IJsonSchemaKeyword
 /// <summary>
 /// A keyword whose value is a non-negative integer.
 /// </summary>
-public abstract class NonNegativeIntegerKeyword(ulong value) : IJsonSchemaKeyword
+public abstract class NonNegativeIntegerKeyword(ulong value) : IJsonSchemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other) =>
+        Value == ((NonNegativeIntegerKeyword)other).Value;
+
+    int IKeywordValueEquality.GetValueHashCode() =>
+        JsonValueEquality.Number(Value);
+
     /// <inheritdoc/>
     public abstract string Name { get; }
 
@@ -169,8 +235,14 @@ public abstract class NonNegativeIntegerKeyword(ulong value) : IJsonSchemaKeywor
 /// <summary>
 /// A keyword whose value is any JSON value.
 /// </summary>
-public abstract class JsonValueKeyword : IJsonSchemaKeyword
+public abstract class JsonValueKeyword : IJsonSchemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other) =>
+        JsonValueEquality.ElementEquals(Value, ((JsonValueKeyword)other).Value);
+
+    int IKeywordValueEquality.GetValueHashCode() =>
+        isPrimitive ? primitive.GetValueHashCode() : JsonValueEquality.Element(parsed);
+
     private readonly JsonElement parsed;
     private readonly PrimitiveJsonValue primitive;
     private readonly bool isPrimitive;
@@ -212,8 +284,50 @@ public abstract class JsonValueKeyword : IJsonSchemaKeyword
 /// <summary>
 /// A keyword whose value is an array of JSON values.
 /// </summary>
-public abstract class JsonValueArrayKeyword : IJsonSchemaKeyword
+public abstract class JsonValueArrayKeyword : IJsonSchemaKeyword, IKeywordValueEquality
 {
+    bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other)
+    {
+        var typed = (JsonValueArrayKeyword)other;
+        if (parsed.IsDefault && typed.parsed.IsDefault)
+        {
+            return strings.AsSpan().SequenceEqual(typed.strings.AsSpan());
+        }
+
+        var values = Values;
+        var otherValues = typed.Values;
+        if (values.Length != otherValues.Length)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < values.Length; index++)
+        {
+            if (!JsonValueEquality.ElementEquals(values[index], otherValues[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    int IKeywordValueEquality.GetValueHashCode()
+    {
+        if (parsed.IsDefault)
+        {
+            return JsonValueEquality.StringArray(strings);
+        }
+
+        var hash = JsonValueEquality.StartArray();
+        foreach (var value in parsed)
+        {
+            hash.Add(JsonValueEquality.Element(value));
+        }
+
+        return JsonValueEquality.ArrayHash(hash, parsed.Length);
+    }
+
     private readonly ImmutableArray<JsonElement> parsed;
 
     //  A builder's string values. They are written directly, and become elements only when Values is read.

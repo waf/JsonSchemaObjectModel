@@ -21,7 +21,7 @@ namespace JsonSchemaObjectModel;
     "CA1710:Identifiers should have correct suffix",
     Justification = "JSON Schema calls these values maps. SchemaDictionary would read worse."
 )]
-public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>
+public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquatable<SchemaMap>
 {
     //  Maps in a schema are usually small. A linear search of a few names is faster than a hash lookup.
     private const int MaxLinearSearch = 16;
@@ -241,6 +241,50 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>
     /// Returns <see langword="true"/> if the map has an entry with the name.
     /// </summary>
     public bool ContainsKey(string key) => TryGetValue(key, out _);
+
+    /// <summary>
+    /// Returns <see langword="true"/> if the two maps have the same names with equal subschemas.
+    /// The order of the entries is not important, as for a JSON object.
+    /// </summary>
+    public bool Equals([NotNullWhen(true)] SchemaMap? other)
+    {
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        if (other is null || other.Count != Count)
+        {
+            return false;
+        }
+
+        foreach (var (name, schema) in entries)
+        {
+            if (!other.TryGetValue(name, out var otherSchema) || !schema.Equals(otherSchema))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <inheritdoc/>
+    public override bool Equals(object? obj) => Equals(obj as SchemaMap);
+
+    /// <summary>
+    /// Returns a hash code. Equal maps have the same hash code.
+    /// </summary>
+    public override int GetHashCode()
+    {
+        var sum = 0;
+        foreach (var (name, schema) in entries)
+        {
+            sum = unchecked(sum + JsonValueEquality.Property(JsonValueEquality.String(name), schema.GetHashCode()));
+        }
+
+        return JsonValueEquality.ObjectHash(sum, entries.Length);
+    }
 
     /// <summary>
     /// Returns an enumerator that does not allocate.
