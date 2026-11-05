@@ -41,7 +41,7 @@ jobs:
 
     - name: Report Code Coverage
       if: matrix.platform == 'windows-latest' # only generate and upload code coverage once
-      uses: codecov/codecov-action@260aa3b4b2f265b8578bc0e721e33ebf8ff53313
+      uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: TestResults/coverage.cobertura.xml
