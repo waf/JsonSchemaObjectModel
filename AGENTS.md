@@ -74,6 +74,8 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
   - `Reading.cs`: `JsonSchemaKeywordRegistry`, `JsonSchemaReaderOptions`, `JsonSchemaReadContext`, the internal reader, and `SchemaReadException`.
   - `StandardKeywordReaders.cs`: the draft 2020-12 readers, and the typed read helpers on `JsonSchemaReadContext`.
   - `SchemaMap.cs`: the immutable ordered map of named subschemas, for `properties`, `$defs` and the other map keywords.
+  - `JsonNumber.cs`: the public JSON number type for `minimum`, `maximum`, `multipleOf` and the exclusive limits. Equality compares values (`1` equals `1.0`).
+  - `JsonNumberParts.cs`: the internal reader of number text (sign, significand, scale). Use it for checks and comparisons on numbers. Do not convert to `double`.
   - `Keywords/`: one class per keyword, grouped by vocabulary.
     - The base classes in `KeywordBases.cs` group keywords by value shape.
     - `PrimitiveJsonValue.cs` holds a builder-supplied `const` value.
@@ -110,6 +112,7 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
   - **Builder values:** they are written directly, and become `JsonElement`s only when `.Value`/`.Values` is read. That happens lazily, and a race between threads at most makes a spare copy.
     - A `const` value is a `PrimitiveJsonValue`. Its numeric and GUID values share one 16-byte field, so nothing is boxed.
     - A string `enum` from the builder is a plain string array. It does not use `PrimitiveJsonValue`, which would make each entry twice as large.
+    - A number for `minimum`, `maximum` and the other number keywords is a `JsonNumber`. A builder value stays a `long`, `decimal` or `double`, so it needs no JSON document. A parsed value keeps its element, which shares the document of the parse.
   - **Arrays and maps:**
     - Readers make exact-size arrays and wrap them with `ImmutableCollectionsMarshal.AsImmutableArray`.
     - A keyword adopts an `ImmutableArray` without copying it.

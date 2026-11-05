@@ -241,19 +241,24 @@ public sealed class JsonSchemaBuilder
     public JsonSchemaBuilder Const(Guid value) => Add(new ConstKeyword(PrimitiveJsonValue.From(value)));
 
     /// <summary>Adds <c>multipleOf</c>.</summary>
-    public JsonSchemaBuilder MultipleOf(decimal value) => Add(new MultipleOfKeyword(JsonValues.From(value)));
+    /// <remarks>An <see cref="int"/>, <see cref="long"/> or <see cref="decimal"/> converts implicitly. For a <see cref="double"/>, use <see cref="JsonNumber.From(double)"/>.</remarks>
+    public JsonSchemaBuilder MultipleOf(JsonNumber value) => Add(new MultipleOfKeyword(value));
 
     /// <summary>Adds <c>maximum</c>.</summary>
-    public JsonSchemaBuilder Maximum(decimal value) => Add(new MaximumKeyword(JsonValues.From(value)));
+    /// <remarks>An <see cref="int"/>, <see cref="long"/> or <see cref="decimal"/> converts implicitly. For a <see cref="double"/>, use <see cref="JsonNumber.From(double)"/>.</remarks>
+    public JsonSchemaBuilder Maximum(JsonNumber value) => Add(new MaximumKeyword(value));
 
     /// <summary>Adds <c>exclusiveMaximum</c>.</summary>
-    public JsonSchemaBuilder ExclusiveMaximum(decimal value) => Add(new ExclusiveMaximumKeyword(JsonValues.From(value)));
+    /// <remarks>An <see cref="int"/>, <see cref="long"/> or <see cref="decimal"/> converts implicitly. For a <see cref="double"/>, use <see cref="JsonNumber.From(double)"/>.</remarks>
+    public JsonSchemaBuilder ExclusiveMaximum(JsonNumber value) => Add(new ExclusiveMaximumKeyword(value));
 
     /// <summary>Adds <c>minimum</c>.</summary>
-    public JsonSchemaBuilder Minimum(decimal value) => Add(new MinimumKeyword(JsonValues.From(value)));
+    /// <remarks>An <see cref="int"/>, <see cref="long"/> or <see cref="decimal"/> converts implicitly. For a <see cref="double"/>, use <see cref="JsonNumber.From(double)"/>.</remarks>
+    public JsonSchemaBuilder Minimum(JsonNumber value) => Add(new MinimumKeyword(value));
 
     /// <summary>Adds <c>exclusiveMinimum</c>.</summary>
-    public JsonSchemaBuilder ExclusiveMinimum(decimal value) => Add(new ExclusiveMinimumKeyword(JsonValues.From(value)));
+    /// <remarks>An <see cref="int"/>, <see cref="long"/> or <see cref="decimal"/> converts implicitly. For a <see cref="double"/>, use <see cref="JsonNumber.From(double)"/>.</remarks>
+    public JsonSchemaBuilder ExclusiveMinimum(JsonNumber value) => Add(new ExclusiveMinimumKeyword(value));
 
     /// <summary>Adds <c>maxLength</c>.</summary>
     public JsonSchemaBuilder MaxLength(ulong value) => Add(MaxLengthKeyword.For(value));

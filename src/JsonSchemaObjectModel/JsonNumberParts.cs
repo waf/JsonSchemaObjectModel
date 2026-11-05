@@ -185,12 +185,43 @@ internal readonly ref struct JsonNumberParts
     public bool TryGetUInt64(out ulong value)
     {
         value = 0;
+        return !IsNegative && TryGetMagnitude(out value);
+    }
+
+    /// <summary>
+    /// Gets the value as a <see cref="long"/> if it is an integer that fits.
+    /// </summary>
+    public bool TryGetInt64(out long value)
+    {
+        value = 0;
+        if (!TryGetMagnitude(out var magnitude))
+        {
+            return false;
+        }
+
+        //  The magnitude of long.MinValue is one more than long.MaxValue.
+        var limit = IsNegative ? (ulong)long.MaxValue + 1 : long.MaxValue;
+        if (magnitude > limit)
+        {
+            return false;
+        }
+
+        value = !IsNegative ? (long)magnitude
+            : magnitude == limit ? long.MinValue
+            : -(long)magnitude;
+        return true;
+    }
+
+    //  Gets the absolute value as a ulong if the number is an integer that fits.
+    private bool TryGetMagnitude(out ulong value)
+    {
+        value = 0;
         if (IsZero)
         {
             return true;
         }
 
-        if (IsNegative || !TryGetScale(out var scale) || scale < 0 || SignificandLength + scale > 20)
+        if (!TryGetScale(out var scale) || scale < 0 || SignificandLength + scale > 20)
         {
             return false;
         }

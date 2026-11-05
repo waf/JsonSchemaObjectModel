@@ -132,42 +132,18 @@ public abstract class BooleanValueKeyword(bool value) : IJsonSchemaKeyword
 /// A keyword whose value is a JSON number.
 /// </summary>
 /// <remarks>
-/// The keyword keeps the number as JSON, so a value that does not fit <see cref="decimal"/> or <see cref="double"/>
-/// still round-trips.
+/// The keyword keeps the number as a <see cref="JsonNumber"/>, so a value that does not fit <see cref="decimal"/>
+/// or <see cref="double"/> still round-trips.
 /// </remarks>
-public abstract class NumberValueKeyword : IJsonSchemaKeyword
+public abstract class NumberValueKeyword(JsonNumber value) : IJsonSchemaKeyword
 {
-    /// <summary>
-    /// Creates the keyword.
-    /// </summary>
-    /// <exception cref="ArgumentException"><paramref name="value"/> is not a JSON number.</exception>
-    protected NumberValueKeyword(JsonElement value)
-    {
-        if (value.ValueKind != JsonValueKind.Number)
-        {
-            throw new ArgumentException("The value must be a JSON number.", nameof(value));
-        }
-
-        Value = value.Clone();
-    }
-
     /// <inheritdoc/>
     public abstract string Name { get; }
 
     /// <summary>
-    /// The keyword value, as JSON.
+    /// The keyword value.
     /// </summary>
-    public JsonElement Value { get; }
-
-    /// <summary>
-    /// Gets the value as a <see cref="decimal"/>. This fails if the value is out of range.
-    /// </summary>
-    public bool TryGetDecimal(out decimal value) => Value.TryGetDecimal(out value);
-
-    /// <summary>
-    /// Gets the value as a <see cref="double"/>. This can lose precision.
-    /// </summary>
-    public double GetDouble() => Value.GetDouble();
+    public JsonNumber Value { get; } = value;
 
     /// <inheritdoc/>
     public void WriteValue(Utf8JsonWriter writer) => Value.WriteTo(writer);

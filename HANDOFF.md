@@ -248,3 +248,11 @@ Corrections to this document:
 - The sample outputs in "Round-trip is semantic" and "Encoder default" lost their escapes when the file was written. They are now restored. With the default encoder, `+` is written as `\u002B`, and the Thai text and `< > &` are escaped. With the relaxed encoder, only the emoji is escaped.
 - Finding 5: `JsonSchema.GetKeyword(string name)` already gives by-name access.
 - The benchmark `GlobalSetup` compares JSON with `JsonElement.DeepEquals`, so the encoder does not affect it.
+
+Recommendation 2, `JsonNumber`:
+
+- `NumberValueKeyword.Value`, the number keyword constructors and `JsonSchemaReadContext.ReadNumber` use `JsonNumber`, not `JsonElement`.
+- The builder number methods take a `JsonNumber`. An `int`, `long` or `decimal` converts implicitly. A `double` needs `JsonNumber.From(double)`, because NaN and infinity are not JSON.
+- Equality and hash codes compare values with `JsonNumberParts`, and agree with `JsonElement.DeepEquals`. `JsonElement.DeepEquals` throws for an exponent beyond `int`. `JsonNumber` has no such limit.
+- `TryGetInt64` accepts any integer form, for example `2.0`. `TryGetDouble` fails for a value too large for a double.
+- Allocation: a built number keyword is 56 B. Before, the builder also made a 144 B element for each number. A parsed number keyword is about 24 B larger, because `JsonNumber` is larger than `JsonElement`. The benchmark schema has no number keywords, so the benchmarks do not show this change.

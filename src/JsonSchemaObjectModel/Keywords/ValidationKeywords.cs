@@ -258,10 +258,10 @@ public sealed class MultipleOfKeyword : NumberValueKeyword
     /// Creates the keyword.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is not greater than zero.</exception>
-    public MultipleOfKeyword(JsonElement value)
+    public MultipleOfKeyword(JsonNumber value)
         : base(value)
     {
-        if (JsonNumberParts.From(Value).Sign <= 0)
+        if (value.Sign <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(value), "The value must be greater than zero.");
         }
@@ -272,7 +272,7 @@ public sealed class MultipleOfKeyword : NumberValueKeyword
 }
 
 /// <summary>The <c>maximum</c> keyword.</summary>
-public sealed class MaximumKeyword(JsonElement value) : NumberValueKeyword(value)
+public sealed class MaximumKeyword(JsonNumber value) : NumberValueKeyword(value)
 {
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "maximum";
@@ -282,7 +282,7 @@ public sealed class MaximumKeyword(JsonElement value) : NumberValueKeyword(value
 }
 
 /// <summary>The <c>exclusiveMaximum</c> keyword.</summary>
-public sealed class ExclusiveMaximumKeyword(JsonElement value) : NumberValueKeyword(value)
+public sealed class ExclusiveMaximumKeyword(JsonNumber value) : NumberValueKeyword(value)
 {
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "exclusiveMaximum";
@@ -292,7 +292,7 @@ public sealed class ExclusiveMaximumKeyword(JsonElement value) : NumberValueKeyw
 }
 
 /// <summary>The <c>minimum</c> keyword.</summary>
-public sealed class MinimumKeyword(JsonElement value) : NumberValueKeyword(value)
+public sealed class MinimumKeyword(JsonNumber value) : NumberValueKeyword(value)
 {
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "minimum";
@@ -302,7 +302,7 @@ public sealed class MinimumKeyword(JsonElement value) : NumberValueKeyword(value
 }
 
 /// <summary>The <c>exclusiveMinimum</c> keyword.</summary>
-public sealed class ExclusiveMinimumKeyword(JsonElement value) : NumberValueKeyword(value)
+public sealed class ExclusiveMinimumKeyword(JsonNumber value) : NumberValueKeyword(value)
 {
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "exclusiveMinimum";

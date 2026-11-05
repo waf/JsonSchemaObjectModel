@@ -25,10 +25,10 @@ public readonly partial struct JsonSchemaReadContext
         };
 
     /// <summary>
-    /// Reads a number value. The result is a clone that does not depend on the source document.
+    /// Reads a number value. The result does not depend on the source document.
     /// </summary>
-    public JsonElement ReadNumber(JsonElement value) =>
-        value.ValueKind == JsonValueKind.Number ? value.Clone() : throw Error("The value must be a number.");
+    public JsonNumber ReadNumber(JsonElement value) =>
+        value.ValueKind == JsonValueKind.Number ? JsonNumber.FromElement(value) : throw Error("The value must be a number.");
 
     /// <summary>
     /// Reads a non-negative integer. A number with a zero fractional part, for example <c>2.0</c> or <c>1e2</c>, is an integer.
@@ -350,9 +350,9 @@ internal static class StandardKeywordReaders
 
     private static MultipleOfKeyword ReadMultipleOf(JsonElement value, JsonSchemaReadContext context)
     {
-        //  Read the sign from the text. A double makes a very small value such as 1e-400 into zero.
+        //  The sign comes from the text. A double would make a very small value such as 1e-400 into zero.
         var number = context.ReadNumber(value);
-        return JsonNumberParts.From(number).Sign > 0
+        return number.Sign > 0
             ? new MultipleOfKeyword(number)
             : throw context.Error("The value must be greater than zero.");
     }
