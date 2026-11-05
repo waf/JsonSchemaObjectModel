@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+
+    <PackageId>JsonSchemaObjectModel</PackageId>
+    <PackageTags>json schema jsonschema json-schema draft2020-12 system.text.json aot</PackageTags>
+    <PackageProjectUrl>https://github.com/waf/JsonSchemaObjectModel</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <Description>An AOT-compatible JSON Schema (draft 2020-12) object model, builder and serializer built on System.Text.Json.</Description>
+    <RepositoryUrl>https://github.com/waf/JsonSchemaObjectModel</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Authors>Will Fuqua</Authors>
+    <Company />
+
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <InternalsVisibleTo Include="JsonSchemaObjectModel.Tests" />
+  </ItemGroup>
+</Project>

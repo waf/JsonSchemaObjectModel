@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schema/meta/restaurant",
+  "$dynamicAnchor": "meta",
+  "title": "Restaurant vocabulary meta-schema",
+  "type": ["object", "boolean"],
+  "properties": {
+    "placeholder": { "type": "string" },
+    "minDate": {
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "message": { "type": "string" }
+      },
+      "required": ["date"],
+      "additionalProperties": false
+    }
+  }
+}

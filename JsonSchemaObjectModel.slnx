@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/JsonSchemaObjectModel/JsonSchemaObjectModel.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/JsonSchemaObjectModel.Tests/JsonSchemaObjectModel.Tests.csproj" />
+    <Project Path="tests/JsonSchemaObjectModel.AotSmoke/JsonSchemaObjectModel.AotSmoke.csproj" />
+    <Project Path="tests/JsonSchemaObjectModel.Benchmarks/JsonSchemaObjectModel.Benchmarks.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,111 @@
+# JsonSchemaObjectModel
+
+An AOT-compatible JSON Schema (draft 2020-12) **object model** for .NET, built on System.Text.Json.
+
+It builds, parses, writes and navigates schemas. It does **not** validate instances. For validation, give the
+JSON it writes to a validator such as [LateApexEarlySpeed.Json.Schema](https://github.com/lateapexearlyspeed/Lateapexearlyspeed.JsonSchema).
+
+- All draft 2020-12 keywords are typed. Unknown keywords are kept as JSON, so every schema round-trips.
+- Custom keywords are typed too. You register a reader for each one. No reflection, no global state.
+- Native AOT and trimming safe (`IsAotCompatible`). A Native AOT smoke test runs in CI.
+- Every schema in the official [JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite)
+  (draft 2020-12) round-trips. An independent validator checks the output against the 2020-12 meta-schema.
+
+This library is intentionally only a lightweight object model. If you need additional features, they can be built
+on top of this package. If you need something more full-featured, try the excellent
+[JsonSchema.Net](https://github.com/json-everything/json-everything) library.
+
+## Build a schema
+
+```csharp
+using JsonSchemaObjectModel;
+
+JsonSchema restaurantSchema = new JsonSchemaBuilder()
+    .Schema(SchemaKeyword.Draft202012)
+    .Type(SchemaValueType.Object)
+    .Properties(
+        ("ownerEmail", new JsonSchemaBuilder().Type(SchemaValueType.String).Format(Formats.Email)),
+        ("menus", new JsonSchemaBuilder().Type(SchemaValueType.Array).MinItems(1))
+    )
+    .Required("ownerEmail");
+
+string json = restaurantSchema.ToJsonString();
+```
+
+## Parse and navigate
+
+```csharp
+using JsonSchemaObjectModel.Keywords;
+
+var restaurantSchema = JsonSchema.Parse(json);
+
+JsonSchema? ownerEmail = restaurantSchema.FindSubschema("/properties/ownerEmail");   // RFC 6901 JSON Pointer
+string? format = ownerEmail?.Format;                                                 // accessor for common keywords
+MinItemsKeyword? minItems = restaurantSchema.FindSubschema("/properties/menus")?.GetKeyword<MinItemsKeyword>();
+```
+
+`JsonSchema` has a System.Text.Json converter, so it works as a property of a serialized type,
+including with source-generated `JsonSerializerContext`s.
+
+## Custom keywords and vocabularies
+
+Implement `IJsonSchemaKeyword`, then register a reader:
+
+```csharp
+sealed class PlaceholderKeyword(string placeholder) : IJsonSchemaKeyword
+{
+    public const string KeywordName = "placeholder";
+    public string Name => KeywordName;
+    public string Placeholder { get; } = placeholder;
+    public void WriteValue(Utf8JsonWriter writer) => writer.WriteStringValue(Placeholder);
+}
+
+var readerOptions = new JsonSchemaReaderOptions(
+    JsonSchemaKeywordRegistry.CreateDraft202012()
+        .Add(PlaceholderKeyword.KeywordName, (value, context) => new PlaceholderKeyword(context.ReadString(value))));
+
+var schema = JsonSchema.Parse(json, readerOptions);
+var serializerOptions = new JsonSerializerOptions { Converters = { new JsonSchemaConverter(readerOptions) } };
+```
+
+- Add a keyword to a schema with `JsonSchemaBuilder.Add(keyword)`.
+- The read context gives typed helpers (`ReadString`, `ReadSchema`, `ReadSchemaArray`, ...). Its `Error` method
+  makes a `JsonException` whose `Path` is the JSON Pointer of the bad value.
+- Declare the keywords in a meta-schema with `$vocabulary`, so that other implementations can check them.
+  Mark the vocabulary `false` (optional), so that validators that do not know it still process the schema.
+  `tests/JsonSchemaObjectModel.Tests/TestData/CustomVocabulary` has an example.
+
+## Not in scope
+
+- Instance validation, output formats and format assertion.
+- `$ref` resolution. `FindSubschema` walks the document structure only.
+- Drafts other than 2020-12. A 2019-09 schema with an array-form `items` fails to parse.
+
+## Development
+
+```
+git submodule update --init
+dotnet build
+dotnet test
+dotnet publish tests/JsonSchemaObjectModel.AotSmoke -c Release -o artifacts/aot && artifacts/aot/JsonSchemaObjectModel.AotSmoke
+```
+
+### Benchmarks
+
+`tests/JsonSchemaObjectModel.Benchmarks` compares Build, Write, Parse and Navigate against JsonSchema.Net and
+NJsonSchema, on a restaurant-order schema with 1 and 9 order lines.
+
+```
+dotnet run -c Release --project tests/JsonSchemaObjectModel.Benchmarks -- --filter *
+```
+
+JsonSchema.Net 9.x binaries are under the json-everything maintenance-fee EULA. This repository uses them only to
+benchmark, and the package does not depend on them.
+
+On Windows, Native AOT needs the Visual Studio C++ tools. It also needs `vswhere.exe`
+(in `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer`) on `PATH`.
+
+## Licence
+
+MIT. The vendored draft 2020-12 meta-schemas in `tests/JsonSchemaObjectModel.Tests/TestData/MetaSchemas` are
+© JSON Schema Specification Authors, under the licence in that folder.

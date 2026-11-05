@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <!-- Test code may use reflection-based STJ. Only the library is held to AOT rules. -->
+    <NoWarn>$(NoWarn);CA1707;CA1861</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Testing.Platform.MSBuild" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Include="xunit.v3.mtp-v2" />
+    <PackageReference Include="LateApexEarlySpeed.Json.Schema" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\JsonSchemaObjectModel\JsonSchemaObjectModel.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Content Include="TestData\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\JSON-Schema-Test-Suite\tests\draft2020-12\**\*.json" LinkBase="TestSuite\draft2020-12" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

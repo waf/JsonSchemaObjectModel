@@ -1,0 +1,55 @@
+name: main build
+
+on:
+  pull_request:
+  push:
+    branches:
+    - main
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      with:
+        submodules: true # tests/JSON-Schema-Test-Suite
+
+    - name: Install Dotnet
+      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5.3.0
+      with:
+        global-json-file: global.json
+
+    - name: Dotnet Installation Info
+      run: dotnet --info
+
+    - name: Build
+      run: dotnet build
+
+    # Coverage is only uploaded from the Windows run (see below), so Linux doesn't need --coverage.
+    - name: Test (Linux)
+      if: matrix.platform == 'ubuntu-latest'
+      run: dotnet test --project tests/JsonSchemaObjectModel.Tests/JsonSchemaObjectModel.Tests.csproj --no-build --results-directory TestResults
+
+    - name: Test (Windows, with coverage)
+      if: matrix.platform == 'windows-latest'
+      run: dotnet test --project tests/JsonSchemaObjectModel.Tests/JsonSchemaObjectModel.Tests.csproj --no-build --results-directory TestResults --coverage --coverage-output-format cobertura --coverage-output coverage.cobertura.xml
+
+    - name: Report Code Coverage
+      if: matrix.platform == 'windows-latest' # only generate and upload code coverage once
+      uses: codecov/codecov-action@260aa3b4b2f265b8578bc0e721e33ebf8ff53313
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: TestResults/coverage.cobertura.xml
+
+    # The library must stay trimming and Native AOT safe. This publishes a small app with Native AOT and runs it.
+    # Linux only: the runner has clang, and Windows would need vswhere.exe on PATH for the MSVC linker.
+    - name: Native AOT smoke test
+      if: matrix.platform == 'ubuntu-latest'
+      run: |
+        dotnet publish tests/JsonSchemaObjectModel.AotSmoke -c Release -o artifacts/aot
+        artifacts/aot/JsonSchemaObjectModel.AotSmoke

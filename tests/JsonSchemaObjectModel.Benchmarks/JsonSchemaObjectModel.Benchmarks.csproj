@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <!-- BenchmarkDotNet generates code that the library's analyzer settings do not need to police. -->
+    <NoWarn>$(NoWarn);CA1001;CA1515;CA1822</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+    <PackageReference Include="JsonSchema.Net" />
+    <PackageReference Include="NJsonSchema" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\JsonSchemaObjectModel\JsonSchemaObjectModel.csproj" />
+  </ItemGroup>
+
+</Project>
