@@ -279,3 +279,17 @@ Step 1 and 2, done:
 - The 19 standard subschema keywords override them with covariant return types, for example `NotKeyword.WithSchema` returns a `NotKeyword`.
 - `JsonSchema.With(keyword)` replaces a keyword in place or adds it at the end. `JsonSchema.Without(name)` removes one. Both return the same schema when nothing changes, and throw for a boolean schema.
 
+Step 3 and 4, done:
+
+- `JsonSchema.Walk` visits parent first. The visitor returns `Continue`, `SkipChildren` or `Stop`.
+- `JsonSchema.Rewrite` goes children first. The rewriter gets each schema with rewritten subschemas, and is not called again on its own result. Unchanged parts are shared: an identity rewrite returns the same root.
+- Both have a struct overload (`ISchemaVisitor`, `ISchemaRewriter`) with static dispatch, and a delegate overload (`SchemaVisitor`, `SchemaRewriter`).
+- `SchemaLocation` is a `ref struct` with `Segments`, `Depth`, `KeywordName`, `PropertyName`, `Index` and `ToPointer()`. The pointer escapes `~` and `/`.
+- Cost: with struct callbacks, a walk and a rewrite that change nothing allocate nothing after the path array is rented from the pool.
+- Tests: for every Test Suite schema, the walk visits every subschema and `FindSubschema(location.ToPointer())` returns the same instance, and an identity rewrite returns the same root. Other tests cover sharing, the strict structured-output example (validated against the 2020-12 meta-schema), skip and stop, a custom subschema keyword, and a rewriter that returns null.
+- The AOT smoke app runs a walk and a rewrite.
+
+Not done, by design: a pre-order rewrite, and walking into the JSON of unknown keywords. Both can come later without a breaking change.
+
+Remaining: recommendation 4 (source generator, optional) and raw emoji output (skip unless asked).
+

@@ -97,6 +97,29 @@ public class AllocationPathTests
         Assert.ThrowsAny<JsonException>(() => JsonSchema.Parse("""{"type":"string"} {}"""));
     }
 
+    [Fact]
+    public void A_walk_and_a_rewrite_that_changes_nothing_allocate_nothing_with_struct_callbacks()
+    {
+        var order = JsonSchema.Parse(
+            """{"type":"object","properties":{"dish":{"type":"string"},"lines":{"type":"array","items":{"allOf":[{"minimum":1},true]}}},"$defs":{"price":{"type":"number"}}}"""
+        );
+        var visitor = new CountingVisitor();
+        var rewriter = new IdentityRewriter();
+
+        //  The first calls rent the path array from the pool.
+        order.Walk(ref visitor);
+        order.Rewrite(ref rewriter);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        order.Walk(ref visitor);
+        var result = order.Rewrite(ref rewriter);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Same(order, result);
+        Assert.Equal(14, visitor.Count);  // 7 schemas, walked twice
+        Assert.Equal(0, allocated);
+    }
+
     private static void AssertJsonEqual(string expected, string actual)
     {
         using var expectedDocument = JsonDocument.Parse(expected);
@@ -109,5 +132,21 @@ public class AllocationPathTests
         public string Name => "x-nested";
 
         public void WriteValue(Utf8JsonWriter writer) => writer.WriteStringValue(inner.ToJsonString());
+    }
+
+    private struct CountingVisitor : ISchemaVisitor
+    {
+        public int Count { get; private set; }
+
+        public WalkAction Visit(JsonSchema schema, in SchemaLocation location)
+        {
+            Count++;
+            return WalkAction.Continue;
+        }
+    }
+
+    private readonly struct IdentityRewriter : ISchemaRewriter
+    {
+        public JsonSchema Rewrite(JsonSchema schema, in SchemaLocation location) => schema;
     }
 }

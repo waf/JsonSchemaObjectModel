@@ -19,7 +19,7 @@ namespace JsonSchemaObjectModel;
 ///   To read custom keywords, add a <see cref="JsonSchemaConverter"/> with your own options.
 /// </remarks>
 [JsonConverter(typeof(JsonSchemaConverter))]
-public sealed class JsonSchema : IEquatable<JsonSchema>
+public sealed partial class JsonSchema : IEquatable<JsonSchema>
 {
     private const int MaxStackBytes = 1024;
 

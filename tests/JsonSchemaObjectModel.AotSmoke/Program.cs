@@ -34,6 +34,21 @@ Check(
 Check(read.Schema.FindSubschema("/properties/menus/prefixItems/0")?.GetKeyword<EnumKeyword>() is not null, "FindSubschema failed.");
 Check(read.Schema.Required is ["customerName"], "The required accessor failed.");
 
+var withoutConst = read.Schema.Rewrite((JsonSchema current, in SchemaLocation _) =>
+    current.BooleanValue is null ? current.Without(ConstKeyword.KeywordName) : current);
+Check(
+    withoutConst.FindSubschema("/properties/id")?.GetKeyword<ConstKeyword>() is null
+        && read.Schema.FindSubschema("/properties/id")?.GetKeyword<ConstKeyword>() is not null,
+    "Rewrite failed."
+);
+var pointers = new List<string>();
+read.Schema.Walk((JsonSchema _, in SchemaLocation location) =>
+{
+    pointers.Add(location.ToPointer());
+    return WalkAction.Continue;
+});
+Check(pointers.Contains("/properties/menus/prefixItems/0") && pointers.Count == 5, "Walk failed.");
+
 foreach (var failure in failures)
 {
     Console.Error.WriteLine(failure);

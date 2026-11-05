@@ -57,6 +57,42 @@ including with source-generated `JsonSerializerContext`s.
 stays readable. Pass `new JsonWriterOptions { Encoder = JavaScriptEncoder.Default }` for HTML-safe output.
 `WriteTo` and the converter use the encoder of the writer that you give them.
 
+## Walk and rewrite
+
+A schema is immutable. `Rewrite` returns a changed copy, and shares every part that did not change. The rewriter gets
+each schema after its subschemas, so one pass can change a whole tree. For example, to prepare a restaurant-order
+schema for a strict structured-output API:
+
+```csharp
+var strict = restaurantSchema.Rewrite((JsonSchema schema, in SchemaLocation location) =>
+{
+    if (schema.BooleanValue is not null)
+    {
+        return schema;
+    }
+
+    schema = schema.Without(FormatKeyword.KeywordName).Without(PatternKeyword.KeywordName);
+    return schema.Properties is { } properties
+        ? schema.With(new RequiredKeyword(properties.Keys)).With(AdditionalPropertiesKeyword.For(false))
+        : schema;
+});
+```
+
+`Walk` visits each schema, parent first. The visitor returns `Continue`, `SkipChildren` or `Stop`.
+
+```csharp
+restaurantSchema.Walk((JsonSchema schema, in SchemaLocation location) =>
+{
+    Console.WriteLine($"{location.ToPointer()}: {schema.Type}");   // for example "/properties/menus: Array"
+    return WalkAction.Continue;
+});
+```
+
+- `With(keyword)` and `Without(name)` edit one schema. They return the same instance if nothing changes.
+- Both methods have an overload for a struct that implements `ISchemaVisitor` or `ISchemaRewriter`. With a struct,
+  a walk or a rewrite that changes nothing allocates nothing.
+- The walk and the rewrite go into subschema keywords only. They do not resolve `$ref`.
+
 ## Custom keywords and vocabularies
 
 Implement `IJsonSchemaKeyword<T>`, then register the type:
@@ -85,6 +121,8 @@ var serializerOptions = new JsonSerializerOptions { Converters = { new JsonSchem
 - For a reader with run-time configuration, or one type for many names (for example every `x-*` keyword), implement
   `IJsonSchemaKeyword` and register a delegate: `registry.Add("x-ui", (value, context) => ...)`.
 - Add a keyword to a schema with `JsonSchemaBuilder.Add(keyword)`.
+- A keyword with subschemas implements `ISingleSubschemaKeyword`, `ISubschemaArrayKeyword` or `ISubschemaMapKeyword`,
+  or derives from `SingleSubschemaKeyword` and the other base classes. Then `FindSubschema`, `Walk` and `Rewrite` go into it.
 - The read context gives typed helpers (`ReadString`, `ReadSchema`, `ReadSchemaArray`, ...). Its `Error` method
   makes a `JsonException` whose `Path` is the JSON Pointer of the bad value.
 - Declare the keywords in a meta-schema with `$vocabulary`, so that other implementations can check them.

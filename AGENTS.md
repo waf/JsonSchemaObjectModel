@@ -69,7 +69,9 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
 ## Layout
 
 - `src/JsonSchemaObjectModel/`:
-  - `JsonSchema.cs`: the immutable schema. It has `Parse`, `FromJsonElement`, `WriteTo`, `ToJsonString`, `GetKeyword`, and `FindSubschema` (JSON Pointer).
+  - `JsonSchema.cs`: the immutable schema. It has `Parse`, `FromJsonElement`, `WriteTo`, `ToJsonString`, `GetKeyword`, `FindSubschema` (JSON Pointer), `With`, `Without` and equality.
+  - `JsonSchema.Traversal.cs`: `Walk` (parent first) and `Rewrite` (children first, with structural sharing).
+  - `SchemaLocation.cs`: `SchemaLocation`, the visitor and rewriter contracts, and the pooled path of a walk.
   - `JsonSchemaBuilder.cs`: the fluent builder and the `JsonValues` helpers.
   - `Reading.cs`: `JsonSchemaKeywordRegistry`, `JsonSchemaReaderOptions`, `JsonSchemaReadContext`, the internal reader, and `SchemaReadException`.
   - `StandardKeywordReaders.cs`: the draft 2020-12 readers, and the typed read helpers on `JsonSchemaReadContext`.
@@ -130,6 +132,7 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
     - Call the `For` factory, not the constructor, in the reader and the builder.
   - **Builder calls:** the builder has `params ReadOnlySpan<T>` overloads, so fluent calls do not allocate params arrays. Keep an `IEnumerable<T>` overload next to each one for collections.
   - **Writing:** `ToJsonString` reuses a buffer and a `Utf8JsonWriter` for each thread when the options are default. It handles nested calls, and does not keep buffers over 64 KB.
+  - **Walk and rewrite:** a struct visitor or rewriter is a generic argument, so the calls have static dispatch and no delegate. The path is a pooled array, and `SchemaLocation` is a `ref struct` over it, so a walk or a rewrite that changes nothing allocates nothing. `ToPointer` allocates only when called. A rewrite copies a keyword array, a subschema array or a map entry array only when the first entry changes. `AllocationPathTests` checks the zero-allocation case.
   - **Navigating:** `SchemaMap` searches up to 16 entries linearly, and builds an index for larger maps. Both lookups accept a `ReadOnlySpan<char>`, so `FindSubschema` allocates no key strings.
     - `foreach` over a `SchemaMap` uses a struct enumerator.
     - `Keys` and `Values` are `readonly struct` views of the entry array, with struct enumerators. They are boxed only through `IEnumerable<T>`. Do not turn them back into cached classes: that adds a mutable field and an allocation.
