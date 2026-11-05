@@ -8,7 +8,7 @@ using JsonSchemaObjectModel.Keywords;
 var readerOptions = new JsonSchemaReaderOptions(
     JsonSchemaKeywordRegistry
         .CreateDraft202012()
-        .Add(PlaceholderKeyword.KeywordName, (value, context) => new PlaceholderKeyword(context.ReadString(value)))
+        .Add<PlaceholderKeyword>()
 );
 
 JsonSchema schema = new JsonSchemaBuilder()
@@ -55,13 +55,15 @@ internal sealed record Envelope([property: JsonPropertyName("$schema")] JsonSche
 [JsonSerializable(typeof(Envelope))]
 internal sealed partial class SmokeJsonContext : JsonSerializerContext;
 
-internal sealed class PlaceholderKeyword(string placeholder) : IJsonSchemaKeyword
+internal sealed class PlaceholderKeyword(string placeholder) : IJsonSchemaKeyword<PlaceholderKeyword>
 {
-    public const string KeywordName = "placeholder";
+    public static string KeywordName => "placeholder";
 
     public string Name => KeywordName;
 
     public string Placeholder { get; } = placeholder;
+
+    public static PlaceholderKeyword Read(JsonElement value, JsonSchemaReadContext context) => new(context.ReadString(value));
 
     public void WriteValue(Utf8JsonWriter writer) => writer.WriteStringValue(Placeholder);
 }

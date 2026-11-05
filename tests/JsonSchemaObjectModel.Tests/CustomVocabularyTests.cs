@@ -19,7 +19,8 @@ public class CustomVocabularyTests
     private static readonly JsonSchemaReaderOptions readerOptions = new(
         JsonSchemaKeywordRegistry
             .CreateDraft202012()
-            .Add(PlaceholderKeyword.KeywordName, PlaceholderKeyword.Read)
+            //  The placeholder keyword registers by type. The minDate keyword uses the delegate overload.
+            .Add<PlaceholderKeyword>()
             .Add(MinDateKeyword.KeywordName, MinDateKeyword.Read)
     );
 
@@ -111,9 +112,9 @@ public class CustomVocabularyTests
 
     private sealed record OrderResponse([property: JsonPropertyName("$schema")] JsonSchema Schema);
 
-    private sealed class PlaceholderKeyword(string placeholder) : IJsonSchemaKeyword
+    private sealed class PlaceholderKeyword(string placeholder) : IJsonSchemaKeyword<PlaceholderKeyword>
     {
-        public const string KeywordName = "placeholder";
+        public static string KeywordName => "placeholder";
 
         public string Name => KeywordName;
 

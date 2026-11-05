@@ -15,7 +15,7 @@ public static class JsonSchemaAccessors
     extension(JsonSchema schema)
     {
         /// <summary>The value of <c>properties</c>.</summary>
-        public IReadOnlyDictionary<string, JsonSchema>? Properties => schema.GetKeyword<PropertiesKeyword>()?.Schemas;
+        public SchemaMap? Properties => schema.GetKeyword<PropertiesKeyword>()?.Schemas;
 
         /// <summary>The value of <c>prefixItems</c>.</summary>
         public ImmutableArray<JsonSchema>? PrefixItems => schema.GetKeyword<PrefixItemsKeyword>()?.Schemas;
@@ -33,6 +33,6 @@ public static class JsonSchemaAccessors
         public string? Format => schema.GetKeyword<FormatKeyword>()?.Value;
 
         /// <summary>The value of <c>$defs</c>.</summary>
-        public IReadOnlyDictionary<string, JsonSchema>? Defs => schema.GetKeyword<DefsKeyword>()?.Schemas;
+        public SchemaMap? Defs => schema.GetKeyword<DefsKeyword>()?.Schemas;
     }
 }

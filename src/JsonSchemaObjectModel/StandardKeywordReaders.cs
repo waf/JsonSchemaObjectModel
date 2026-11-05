@@ -84,26 +84,35 @@ public readonly partial struct JsonSchemaReadContext
     /// Reads an object of named subschemas, in document order.
     /// </summary>
     /// <remarks>
-    /// Pass the result to a keyword that derives from <see cref="SubschemaMapKeyword"/>. The keyword uses it without a copy.
+    /// A keyword that derives from <see cref="SubschemaMapKeyword"/> uses the result without a copy.
     /// </remarks>
-    public IReadOnlyDictionary<string, JsonSchema> ReadSchemaMap(JsonElement value)
+    public SchemaMap ReadSchemaMap(JsonElement value)
     {
         if (value.ValueKind != JsonValueKind.Object)
         {
             throw Error("The value must be an object of schemas.");
         }
 
-        var schemas = new OwnedSchemaMap(value.GetPropertyCount());
+        var count = value.GetPropertyCount();
+        var entries = new KeyValuePair<string, JsonSchema>[count];
+
+        //  A large map gets its index here. The index also finds a duplicate name, so the map need not search again.
+        var index = SchemaMap.NeedsIndex(count) ? new Dictionary<string, int>(count, StringComparer.Ordinal) : null;
+        var position = 0;
         foreach (var property in value.EnumerateObject())
         {
             var name = property.Name;
-            if (!schemas.TryAdd(name, ReadSchema(property.Value, name)))
+            if (index is null ? SchemaMap.ContainsName(entries.AsSpan(0, position), name) : !index.TryAdd(name, position))
             {
-                throw Error($"The name '{name}' occurs more than once.");
+                var duplicate = (SchemaReadException)Error($"The name '{name}' occurs more than once.");
+                duplicate.AddParent(name);
+                throw duplicate;
             }
+
+            entries[position++] = new(name, ReadSchema(property.Value, name));
         }
 
-        return schemas;
+        return SchemaMap.FromUniqueEntries(entries, index);
     }
 
     /// <summary>
@@ -179,7 +188,7 @@ internal static class StandardKeywordReaders
             .Add(AllOfKeyword.KeywordName, (value, context) => new AllOfKeyword(context.ReadSchemaArray(value)))
             .Add(AnyOfKeyword.KeywordName, (value, context) => new AnyOfKeyword(context.ReadSchemaArray(value)))
             .Add(OneOfKeyword.KeywordName, (value, context) => new OneOfKeyword(context.ReadSchemaArray(value)))
-            .Add(NotKeyword.KeywordName, (value, context) => new NotKeyword(context.ReadSchema(value)))
+            .Add(NotKeyword.KeywordName, (value, context) => NotKeyword.For(context.ReadSchema(value)))
             .Add(IfKeyword.KeywordName, (value, context) => new IfKeyword(context.ReadSchema(value)))
             .Add(ThenKeyword.KeywordName, (value, context) => new ThenKeyword(context.ReadSchema(value)))
             .Add(ElseKeyword.KeywordName, (value, context) => new ElseKeyword(context.ReadSchema(value)))
@@ -188,8 +197,8 @@ internal static class StandardKeywordReaders
                 (value, context) => new DependentSchemasKeyword(context.ReadSchemaMap(value))
             )
             .Add(PrefixItemsKeyword.KeywordName, (value, context) => new PrefixItemsKeyword(context.ReadSchemaArray(value)))
-            .Add(ItemsKeyword.KeywordName, (value, context) => new ItemsKeyword(context.ReadSchema(value)))
-            .Add(ContainsKeyword.KeywordName, (value, context) => new ContainsKeyword(context.ReadSchema(value)))
+            .Add(ItemsKeyword.KeywordName, (value, context) => ItemsKeyword.For(context.ReadSchema(value)))
+            .Add(ContainsKeyword.KeywordName, (value, context) => ContainsKeyword.For(context.ReadSchema(value)))
             .Add(PropertiesKeyword.KeywordName, (value, context) => new PropertiesKeyword(context.ReadSchemaMap(value)))
             .Add(
                 PatternPropertiesKeyword.KeywordName,
@@ -197,19 +206,19 @@ internal static class StandardKeywordReaders
             )
             .Add(
                 AdditionalPropertiesKeyword.KeywordName,
-                (value, context) => new AdditionalPropertiesKeyword(context.ReadSchema(value))
+                (value, context) => AdditionalPropertiesKeyword.For(context.ReadSchema(value))
             )
-            .Add(PropertyNamesKeyword.KeywordName, (value, context) => new PropertyNamesKeyword(context.ReadSchema(value)));
+            .Add(PropertyNamesKeyword.KeywordName, (value, context) => PropertyNamesKeyword.For(context.ReadSchema(value)));
 
         //  Unevaluated vocabulary.
         registry
             .Add(
                 UnevaluatedItemsKeyword.KeywordName,
-                (value, context) => new UnevaluatedItemsKeyword(context.ReadSchema(value))
+                (value, context) => UnevaluatedItemsKeyword.For(context.ReadSchema(value))
             )
             .Add(
                 UnevaluatedPropertiesKeyword.KeywordName,
-                (value, context) => new UnevaluatedPropertiesKeyword(context.ReadSchema(value))
+                (value, context) => UnevaluatedPropertiesKeyword.For(context.ReadSchema(value))
             );
 
         //  Validation vocabulary.
@@ -228,27 +237,27 @@ internal static class StandardKeywordReaders
                 ExclusiveMinimumKeyword.KeywordName,
                 (value, context) => new ExclusiveMinimumKeyword(context.ReadNumber(value))
             )
-            .Add(MaxLengthKeyword.KeywordName, (value, context) => new MaxLengthKeyword(context.ReadNonNegativeInteger(value)))
-            .Add(MinLengthKeyword.KeywordName, (value, context) => new MinLengthKeyword(context.ReadNonNegativeInteger(value)))
+            .Add(MaxLengthKeyword.KeywordName, (value, context) => MaxLengthKeyword.For(context.ReadNonNegativeInteger(value)))
+            .Add(MinLengthKeyword.KeywordName, (value, context) => MinLengthKeyword.For(context.ReadNonNegativeInteger(value)))
             .Add(PatternKeyword.KeywordName, (value, context) => new PatternKeyword(context.ReadString(value)))
-            .Add(MaxItemsKeyword.KeywordName, (value, context) => new MaxItemsKeyword(context.ReadNonNegativeInteger(value)))
-            .Add(MinItemsKeyword.KeywordName, (value, context) => new MinItemsKeyword(context.ReadNonNegativeInteger(value)))
-            .Add(UniqueItemsKeyword.KeywordName, (value, context) => new UniqueItemsKeyword(context.ReadBoolean(value)))
+            .Add(MaxItemsKeyword.KeywordName, (value, context) => MaxItemsKeyword.For(context.ReadNonNegativeInteger(value)))
+            .Add(MinItemsKeyword.KeywordName, (value, context) => MinItemsKeyword.For(context.ReadNonNegativeInteger(value)))
+            .Add(UniqueItemsKeyword.KeywordName, (value, context) => UniqueItemsKeyword.For(context.ReadBoolean(value)))
             .Add(
                 MaxContainsKeyword.KeywordName,
-                (value, context) => new MaxContainsKeyword(context.ReadNonNegativeInteger(value))
+                (value, context) => MaxContainsKeyword.For(context.ReadNonNegativeInteger(value))
             )
             .Add(
                 MinContainsKeyword.KeywordName,
-                (value, context) => new MinContainsKeyword(context.ReadNonNegativeInteger(value))
+                (value, context) => MinContainsKeyword.For(context.ReadNonNegativeInteger(value))
             )
             .Add(
                 MaxPropertiesKeyword.KeywordName,
-                (value, context) => new MaxPropertiesKeyword(context.ReadNonNegativeInteger(value))
+                (value, context) => MaxPropertiesKeyword.For(context.ReadNonNegativeInteger(value))
             )
             .Add(
                 MinPropertiesKeyword.KeywordName,
-                (value, context) => new MinPropertiesKeyword(context.ReadNonNegativeInteger(value))
+                (value, context) => MinPropertiesKeyword.For(context.ReadNonNegativeInteger(value))
             )
             .Add(RequiredKeyword.KeywordName, (value, context) => new RequiredKeyword(context.ReadUniqueStringArray(value)))
             .Add(DependentRequiredKeyword.KeywordName, ReadDependentRequired);
@@ -258,9 +267,9 @@ internal static class StandardKeywordReaders
             .Add(TitleKeyword.KeywordName, (value, context) => new TitleKeyword(context.ReadString(value)))
             .Add(DescriptionKeyword.KeywordName, (value, context) => new DescriptionKeyword(context.ReadString(value)))
             .Add(DefaultKeyword.KeywordName, (value, _) => new DefaultKeyword(value))
-            .Add(DeprecatedKeyword.KeywordName, (value, context) => new DeprecatedKeyword(context.ReadBoolean(value)))
-            .Add(ReadOnlyKeyword.KeywordName, (value, context) => new ReadOnlyKeyword(context.ReadBoolean(value)))
-            .Add(WriteOnlyKeyword.KeywordName, (value, context) => new WriteOnlyKeyword(context.ReadBoolean(value)))
+            .Add(DeprecatedKeyword.KeywordName, (value, context) => DeprecatedKeyword.For(context.ReadBoolean(value)))
+            .Add(ReadOnlyKeyword.KeywordName, (value, context) => ReadOnlyKeyword.For(context.ReadBoolean(value)))
+            .Add(WriteOnlyKeyword.KeywordName, (value, context) => WriteOnlyKeyword.For(context.ReadBoolean(value)))
             .Add(ExamplesKeyword.KeywordName, (value, context) => new ExamplesKeyword(context.ReadValueArray(value)));
 
         //  Format-annotation and content vocabularies.
@@ -288,7 +297,13 @@ internal static class StandardKeywordReaders
             throw context.Error("The value must be a string or an array of strings.");
         }
 
-        var types = new SchemaValueType[value.GetArrayLength()];
+        var length = value.GetArrayLength();
+        if (length == 0)
+        {
+            throw context.Error("The array must contain at least one type.");
+        }
+
+        var types = new SchemaValueType[length];
         var index = 0;
         var seen = SchemaValueType.None;
         foreach (var item in value.EnumerateArray())
@@ -310,31 +325,8 @@ internal static class StandardKeywordReaders
         return new TypeKeyword(ImmutableCollectionsMarshal.AsImmutableArray(types));
     }
 
-    private static readonly string[] knownFormats =
-    [
-        Formats.DateTime,
-        Formats.Date,
-        Formats.Time,
-        Formats.Duration,
-        Formats.Email,
-        Formats.IdnEmail,
-        Formats.Hostname,
-        Formats.IdnHostname,
-        Formats.Ipv4,
-        Formats.Ipv6,
-        Formats.Uri,
-        Formats.UriReference,
-        Formats.Iri,
-        Formats.IriReference,
-        Formats.Uuid,
-        Formats.UriTemplate,
-        Formats.JsonPointer,
-        Formats.RelativeJsonPointer,
-        Formats.Regex,
-    ];
-
     /// <summary>
-    /// Reads <c>format</c>. A standard format name reuses the constant string instead of allocating one.
+    /// Reads <c>format</c>. A standard format name gives the shared keyword, so it allocates nothing.
     /// </summary>
     private static FormatKeyword ReadFormat(JsonElement value, JsonSchemaReadContext context)
     {
@@ -343,11 +335,11 @@ internal static class StandardKeywordReaders
             throw context.Error("The value must be a string.");
         }
 
-        foreach (var format in knownFormats)
+        foreach (var keyword in FormatKeyword.Standard)
         {
-            if (value.ValueEquals(format))
+            if (value.ValueEquals(keyword.Value))
             {
-                return new FormatKeyword(format);
+                return keyword;
             }
         }
 

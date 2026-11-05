@@ -39,7 +39,7 @@ These were reproduced with a file-based app (`dotnet run probe.cs` with `#:proje
 
    ```
    in:  {"pattern":"^[a-z]+$","description":"ต้มยำ <b>&</b>","maxLength":2.0,"minimum":1.50}
-   out: {"pattern":"^[a-z]+$","description":"ต้มยำ <b>&</b>","maxLength":2,"minimum":1.50}
+   out: {"pattern":"^[a-z]\u002B$","description":"\u0E15\u0E49\u0E21\u0E22\u0E33 \u003Cb\u003E\u0026\u003C/b\u003E","maxLength":2,"minimum":1.50}
    ```
 
    - The escapes come from the default `JavaScriptEncoder`. See "Encoder default".
@@ -161,8 +161,8 @@ Recommendations, in order of value against cost:
 - Output of the probe:
 
   ```
-  default: {"pattern":"^[a-z]+$","description":"ต้มยำ 🍜 <b>&</b> 'x'"}
-  relaxed: {"pattern":"^[a-z]+$","description":"ต้มยำ 🍜 <b>&</b> 'x'"}
+  default: {"pattern":"^[a-z]\u002B$","description":"\u0E15\u0E49\u0E21\u0E22\u0E33 \uD83C\uDF5C \u003Cb\u003E\u0026\u003C/b\u003E \u0027x\u0027"}
+  relaxed: {"pattern":"^[a-z]+$","description":"ต้มยำ \uD83C\uDF5C <b>&</b> 'x'"}
   ```
 
 - `UnsafeRelaxedJsonEscaping` still escapes characters outside the Basic Multilingual Plane (for example emoji) as surrogate pairs. This is a known limit of the System.Text.Json encoders. Only a custom `JavaScriptEncoder` subclass writes them raw.
@@ -216,3 +216,27 @@ Alternative: keep the System.Text.Json default for consistency with .NET, and do
 6. Consider recommendations 2, 5 and 6 as API work for a later release.
 
 Before you call any change done, follow `AGENTS.md`: `dotnet build`, `dotnet test`, the AOT smoke test for `src/` changes, and the benchmarks for hot-path changes.
+
+## Follow-up (2026-11-05)
+
+Done:
+
+- Defect 1: the reader and `TypeKeyword` reject an empty `type` array.
+- Defect 2: the wording in `AGENTS.md` and `README.md` now says "semantically equal JSON". The library still writes `2.0` as `2`.
+- Defect 3: not changed in code. A builder check was tried and removed: a registry without a standard reader produces an `UnknownKeyword` with a standard name, so the check broke copies of parsed schemas. The docs now say that the typed accessors only see typed keywords.
+- Encoder default: `ToJsonString` uses `UnsafeRelaxedJsonEscaping` when the options have no encoder. `WriteTo` and the converter are unchanged.
+- Finding 4 and recommendation 3:
+  - `SchemaMap` replaces `IReadOnlyDictionary` for map keywords. It has a struct enumerator and span lookup.
+  - `PrimitiveJsonValue` no longer boxes.
+  - A builder's string `enum` is a plain string array.
+- Recommendation 1: `IJsonSchemaKeyword<TSelf>` and `registry.Add<T>()` / `Set<T>()`. The delegate overloads stay. The interface has no default `Name`, because a default interface member cannot be called on the concrete type.
+- A duplicate name in a map keyword is reported at its own location (`/properties/dish`), as soon as the reader meets it.
+- Recommendation 7: `For(...)` factories share common keyword instances.
+
+Deferred: recommendations 2 (`JsonNumber`), 5 (rewrite) and 6 (equality), finding 5 (a doc note only), finding 6.
+
+Corrections to this document:
+
+- The sample outputs in "Round-trip is semantic" and "Encoder default" lost their escapes when the file was written. They are now restored. With the default encoder, `+` is written as `\u002B`, and the Thai text and `< > &` are escaped. With the relaxed encoder, only the emoji is escaped.
+- Finding 5: `JsonSchema.GetKeyword(string name)` already gives by-name access.
+- The benchmark `GlobalSetup` compares JSON with `JsonElement.DeepEquals`, so the encoder does not affect it.

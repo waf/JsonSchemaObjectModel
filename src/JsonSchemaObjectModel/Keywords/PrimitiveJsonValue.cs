@@ -1,24 +1,68 @@
 using System.Buffers;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 namespace JsonSchemaObjectModel.Keywords;
 
 /// <summary>
-/// A JSON primitive that a builder supplies as a .NET value.
+/// A JSON primitive that a builder supplies as a .NET value, for the <c>const</c> keyword.
 /// </summary>
 /// <remarks>
-/// A <see cref="JsonElement"/> needs a document of its own.
-/// This type writes the value directly, and creates the element only when a caller asks for it.
+/// - A <see cref="JsonElement"/> needs a document of its own.
+///   This type writes the value directly, and creates the element only when a caller asks for it.
+/// - The numeric and GUID values share one 16-byte field, so no value is boxed.
 /// </remarks>
+[StructLayout(LayoutKind.Explicit)]
 internal readonly struct PrimitiveJsonValue
 {
-    private readonly Kind kind;
-    private readonly object? value;
+    [FieldOffset(0)]
+    private readonly string? text;
 
-    private PrimitiveJsonValue(Kind kind, object? value)
+    [FieldOffset(8)]
+    private readonly Kind kind;
+
+    [FieldOffset(16)]
+    private readonly long int64;
+
+    [FieldOffset(16)]
+    private readonly double number;
+
+    [FieldOffset(16)]
+    private readonly decimal decimalNumber;
+
+    [FieldOffset(16)]
+    private readonly Guid guid;
+
+    private PrimitiveJsonValue(Kind kind) => this.kind = kind;
+
+    private PrimitiveJsonValue(string text)
     {
-        this.kind = kind;
-        this.value = value;
+        kind = Kind.String;
+        this.text = text;
+    }
+
+    private PrimitiveJsonValue(long value)
+    {
+        kind = Kind.Int64;
+        int64 = value;
+    }
+
+    private PrimitiveJsonValue(double value)
+    {
+        kind = Kind.Double;
+        number = value;
+    }
+
+    private PrimitiveJsonValue(decimal value)
+    {
+        kind = Kind.Decimal;
+        decimalNumber = value;
+    }
+
+    private PrimitiveJsonValue(Guid value)
+    {
+        kind = Kind.Guid;
+        guid = value;
     }
 
     private enum Kind
@@ -33,20 +77,20 @@ internal readonly struct PrimitiveJsonValue
         Guid,
     }
 
-    public static PrimitiveJsonValue Null => new(Kind.Null, null);
+    public static PrimitiveJsonValue Null => new(Kind.Null);
 
-    public static PrimitiveJsonValue From(string? value) => value is null ? Null : new(Kind.String, value);
+    public static PrimitiveJsonValue From(string? value) => value is null ? Null : new(value);
 
-    public static PrimitiveJsonValue From(long value) => new(Kind.Int64, value);
+    public static PrimitiveJsonValue From(long value) => new(value);
 
-    public static PrimitiveJsonValue From(decimal value) => new(Kind.Decimal, value);
+    public static PrimitiveJsonValue From(decimal value) => new(value);
 
     public static PrimitiveJsonValue From(double value) =>
-        double.IsFinite(value) ? new(Kind.Double, value) : throw new ArgumentException("JSON cannot represent NaN or infinity.", nameof(value));
+        double.IsFinite(value) ? new(value) : throw new ArgumentException("JSON cannot represent NaN or infinity.", nameof(value));
 
-    public static PrimitiveJsonValue From(bool value) => new(value ? Kind.True : Kind.False, null);
+    public static PrimitiveJsonValue From(bool value) => new(value ? Kind.True : Kind.False);
 
-    public static PrimitiveJsonValue From(Guid value) => new(Kind.Guid, value);
+    public static PrimitiveJsonValue From(Guid value) => new(value);
 
     public void WriteTo(Utf8JsonWriter writer)
     {
@@ -62,19 +106,19 @@ internal readonly struct PrimitiveJsonValue
                 writer.WriteBooleanValue(false);
                 break;
             case Kind.String:
-                writer.WriteStringValue((string)value!);
+                writer.WriteStringValue(text);
                 break;
             case Kind.Int64:
-                writer.WriteNumberValue((long)value!);
+                writer.WriteNumberValue(int64);
                 break;
             case Kind.Decimal:
-                writer.WriteNumberValue((decimal)value!);
+                writer.WriteNumberValue(decimalNumber);
                 break;
             case Kind.Double:
-                writer.WriteNumberValue((double)value!);
+                writer.WriteNumberValue(number);
                 break;
             case Kind.Guid:
-                writer.WriteStringValue((Guid)value!);
+                writer.WriteStringValue(guid);
                 break;
         }
     }
@@ -91,9 +135,9 @@ internal readonly struct PrimitiveJsonValue
     }
 
     /// <summary>
-    /// Creates elements for many values in one document.
+    /// Creates elements for many strings in one document.
     /// </summary>
-    public static JsonElement[] ToElements(ReadOnlySpan<PrimitiveJsonValue> values)
+    public static JsonElement[] ToElements(ReadOnlySpan<string> values)
     {
         var buffer = new ArrayBufferWriter<byte>(16 * values.Length + 2);
         using (var writer = new Utf8JsonWriter(buffer))
@@ -101,7 +145,7 @@ internal readonly struct PrimitiveJsonValue
             writer.WriteStartArray();
             foreach (var value in values)
             {
-                value.WriteTo(writer);
+                writer.WriteStringValue(value);
             }
 
             writer.WriteEndArray();

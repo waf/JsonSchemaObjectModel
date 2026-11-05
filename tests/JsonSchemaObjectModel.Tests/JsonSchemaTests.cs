@@ -154,6 +154,7 @@ public class JsonSchemaTests
     [InlineData("""{"minItems":1.5}""", "/minItems")]
     [InlineData("""{"type":"text"}""", "/type")]
     [InlineData("""{"type":["string","string"]}""", "/type")]
+    [InlineData("""{"type":[]}""", "/type")]
     [InlineData("""{"required":["a","a"]}""", "/required")]
     [InlineData("""{"allOf":[]}""", "/allOf")]
     [InlineData("""{"multipleOf":0}""", "/multipleOf")]
@@ -168,6 +169,31 @@ public class JsonSchemaTests
         {
             Assert.Equal(location, exception.Path);
         }
+    }
+
+    [Fact]
+    public void A_type_keyword_needs_at_least_one_type()
+    {
+        Assert.Throws<ArgumentException>(() => new TypeKeyword(Array.Empty<SchemaValueType>()));
+    }
+
+    [Fact]
+    public void A_schema_parsed_without_a_standard_reader_can_be_copied_with_the_builder()
+    {
+        var registry = JsonSchemaKeywordRegistry.CreateDraft202012();
+        registry.Remove(FormatKeyword.KeywordName);
+        var parsed = JsonSchema.Parse("""{"type":"string","format":"email"}""", new JsonSchemaReaderOptions(registry));
+
+        var builder = new JsonSchemaBuilder();
+        foreach (var keyword in parsed.Keywords)
+        {
+            builder.Add(keyword);
+        }
+
+        var copy = builder.Build();
+        Assert.IsType<UnknownKeyword>(copy.Keywords[1]);
+        Assert.Null(copy.Format);
+        Assert.Equal("""{"type":"string","format":"email"}""", copy.ToJsonString());
     }
 
     [Fact]

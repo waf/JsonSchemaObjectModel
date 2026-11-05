@@ -68,93 +68,29 @@ public abstract class SubschemaArrayKeyword : ISubschemaArrayKeyword
 /// </summary>
 public abstract class SubschemaMapKeyword : ISubschemaMapKeyword
 {
-    private readonly OrderedDictionary<string, JsonSchema> schemas;
-
     /// <summary>
-    /// Creates the keyword. The order of <paramref name="schemas"/> is kept.
+    /// Creates the keyword. The order of <paramref name="schemas"/> is kept. A <see cref="SchemaMap"/> is used without a copy.
     /// </summary>
     /// <exception cref="ArgumentException"><paramref name="schemas"/> contains the same name more than once.</exception>
-    protected SubschemaMapKeyword(IEnumerable<KeyValuePair<string, JsonSchema>> schemas)
-    {
-        ArgumentNullException.ThrowIfNull(schemas);
-        if (schemas is OwnedSchemaMap owned)
-        {
-            //  Only this library creates an owned map, and it does not keep a reference to it.
-            this.schemas = owned;
-        }
-        else
-        {
-            var ordered = new OwnedSchemaMap(schemas.TryGetNonEnumeratedCount(out var count) ? count : 0);
-            foreach (var (name, schema) in schemas)
-            {
-                ordered.AddUnique(name, schema, nameof(schemas));
-            }
-
-            this.schemas = ordered;
-        }
-
-        Schemas = new ReadOnlyDictionary<string, JsonSchema>(this.schemas);
-    }
+    protected SubschemaMapKeyword(IEnumerable<KeyValuePair<string, JsonSchema>> schemas) => Schemas = SchemaMap.Create(schemas);
 
     /// <inheritdoc/>
     public abstract string Name { get; }
 
     /// <inheritdoc/>
-    public IReadOnlyDictionary<string, JsonSchema> Schemas { get; }
-
-    /// <summary>
-    /// Gets a subschema by name. For a small map, this does not allocate a string.
-    /// </summary>
-    public bool TryGetSchema(ReadOnlySpan<char> name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out JsonSchema? schema)
-    {
-        //  OrderedDictionary has no span lookup. Maps in a schema are small, and a linear scan of a few names is fast.
-        const int MaxLinearScan = 16;
-        if (schemas.Count > MaxLinearScan)
-        {
-            return schemas.TryGetValue(name.ToString(), out schema);
-        }
-
-        for (var index = 0; index < schemas.Count; index++)
-        {
-            var (key, value) = schemas.GetAt(index);
-            if (name.SequenceEqual(key))
-            {
-                schema = value;
-                return true;
-            }
-        }
-
-        schema = null;
-        return false;
-    }
+    public SchemaMap Schemas { get; }
 
     /// <inheritdoc/>
     public void WriteValue(Utf8JsonWriter writer)
     {
         writer.WriteStartObject();
-        foreach (var (name, schema) in schemas)
+        foreach (var (name, schema) in Schemas.Entries)
         {
             writer.WritePropertyName(name);
             schema.WriteTo(writer);
         }
 
         writer.WriteEndObject();
-    }
-}
-
-/// <summary>
-/// An ordered map that only this library creates. A keyword can keep it without a copy.
-/// </summary>
-internal sealed class OwnedSchemaMap(int capacity) : OrderedDictionary<string, JsonSchema>(capacity, StringComparer.Ordinal)
-{
-    public void AddUnique(string name, JsonSchema schema, string parameterName)
-    {
-        ArgumentNullException.ThrowIfNull(name, parameterName);
-        ArgumentNullException.ThrowIfNull(schema, parameterName);
-        if (!TryAdd(name, schema))
-        {
-            throw new ArgumentException($"The name '{name}' occurs more than once.", parameterName);
-        }
     }
 }
 
@@ -303,7 +239,9 @@ public abstract class JsonValueKeyword : IJsonSchemaKeyword
 public abstract class JsonValueArrayKeyword : IJsonSchemaKeyword
 {
     private readonly ImmutableArray<JsonElement> parsed;
-    private readonly ImmutableArray<PrimitiveJsonValue> primitives;
+
+    //  A builder's string values. They are written directly, and become elements only when Values is read.
+    private readonly ImmutableArray<string> strings;
     private ElementBox<ImmutableArray<JsonElement>>? materialized;
 
     /// <summary>
@@ -317,7 +255,7 @@ public abstract class JsonValueArrayKeyword : IJsonSchemaKeyword
 
     private protected JsonValueArrayKeyword(ImmutableArray<JsonElement> clonedValues) => parsed = clonedValues;
 
-    private protected JsonValueArrayKeyword(ImmutableArray<PrimitiveJsonValue> values) => primitives = values;
+    private protected JsonValueArrayKeyword(ImmutableArray<string> strings) => this.strings = strings;
 
     /// <inheritdoc/>
     public abstract string Name { get; }
@@ -327,7 +265,7 @@ public abstract class JsonValueArrayKeyword : IJsonSchemaKeyword
     /// </summary>
     public ImmutableArray<JsonElement> Values =>
         parsed.IsDefault
-            ? (materialized ??= new(ImmutableCollectionsMarshal.AsImmutableArray(PrimitiveJsonValue.ToElements(primitives.AsSpan())))).Value
+            ? (materialized ??= new(ImmutableCollectionsMarshal.AsImmutableArray(PrimitiveJsonValue.ToElements(strings.AsSpan())))).Value
             : parsed;
 
     /// <inheritdoc/>
@@ -336,9 +274,9 @@ public abstract class JsonValueArrayKeyword : IJsonSchemaKeyword
         writer.WriteStartArray();
         if (parsed.IsDefault)
         {
-            foreach (var value in primitives)
+            foreach (var value in strings)
             {
-                value.WriteTo(writer);
+                writer.WriteStringValue(value);
             }
         }
         else

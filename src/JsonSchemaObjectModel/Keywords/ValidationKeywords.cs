@@ -68,11 +68,18 @@ public sealed class TypeKeyword : IJsonSchemaKeyword
     /// <summary>
     /// Creates the keyword from a list of single types. The keyword writes an array.
     /// </summary>
-    /// <exception cref="ArgumentException">A value is not a single known flag, or occurs more than once.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="types"/> is empty, or a value is not a single known flag, or a value occurs more than once.
+    /// </exception>
     public TypeKeyword(IEnumerable<SchemaValueType> types)
     {
         ArgumentNullException.ThrowIfNull(types);
         Types = [.. types];
+        if (Types.IsEmpty)
+        {
+            throw new ArgumentException("The list must contain at least one type.", nameof(types));
+        }
+
         foreach (var type in Types)
         {
             if (Array.IndexOf(allTypes, type) < 0)
@@ -217,8 +224,8 @@ public sealed class EnumKeyword : JsonValueArrayKeyword
     internal EnumKeyword(ImmutableArray<JsonElement> clonedValues)
         : base(clonedValues) { }
 
-    internal EnumKeyword(ImmutableArray<PrimitiveJsonValue> values)
-        : base(values) { }
+    internal EnumKeyword(ImmutableArray<string> strings)
+        : base(strings) { }
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
@@ -310,6 +317,13 @@ public sealed class MaxLengthKeyword(ulong value) : NonNegativeIntegerKeyword(va
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "maxLength";
 
+    private static readonly MaxLengthKeyword[] shared = SharedKeywords.CreateIntegerCache(static value => new MaxLengthKeyword(value));
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static MaxLengthKeyword For(ulong value) => value < (ulong)shared.Length ? shared[value] : new(value);
+
     /// <inheritdoc/>
     public override string Name => KeywordName;
 }
@@ -319,6 +333,13 @@ public sealed class MinLengthKeyword(ulong value) : NonNegativeIntegerKeyword(va
 {
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "minLength";
+
+    private static readonly MinLengthKeyword[] shared = SharedKeywords.CreateIntegerCache(static value => new MinLengthKeyword(value));
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static MinLengthKeyword For(ulong value) => value < (ulong)shared.Length ? shared[value] : new(value);
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
@@ -340,6 +361,13 @@ public sealed class MaxItemsKeyword(ulong value) : NonNegativeIntegerKeyword(val
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "maxItems";
 
+    private static readonly MaxItemsKeyword[] shared = SharedKeywords.CreateIntegerCache(static value => new MaxItemsKeyword(value));
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static MaxItemsKeyword For(ulong value) => value < (ulong)shared.Length ? shared[value] : new(value);
+
     /// <inheritdoc/>
     public override string Name => KeywordName;
 }
@@ -349,6 +377,13 @@ public sealed class MinItemsKeyword(ulong value) : NonNegativeIntegerKeyword(val
 {
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "minItems";
+
+    private static readonly MinItemsKeyword[] shared = SharedKeywords.CreateIntegerCache(static value => new MinItemsKeyword(value));
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static MinItemsKeyword For(ulong value) => value < (ulong)shared.Length ? shared[value] : new(value);
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
@@ -360,6 +395,14 @@ public sealed class UniqueItemsKeyword(bool value) : BooleanValueKeyword(value)
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "uniqueItems";
 
+    private static readonly UniqueItemsKeyword sharedTrue = new(true);
+    private static readonly UniqueItemsKeyword sharedFalse = new(false);
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static UniqueItemsKeyword For(bool value) => value ? sharedTrue : sharedFalse;
+
     /// <inheritdoc/>
     public override string Name => KeywordName;
 }
@@ -369,6 +412,13 @@ public sealed class MaxContainsKeyword(ulong value) : NonNegativeIntegerKeyword(
 {
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "maxContains";
+
+    private static readonly MaxContainsKeyword[] shared = SharedKeywords.CreateIntegerCache(static value => new MaxContainsKeyword(value));
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static MaxContainsKeyword For(ulong value) => value < (ulong)shared.Length ? shared[value] : new(value);
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
@@ -380,6 +430,13 @@ public sealed class MinContainsKeyword(ulong value) : NonNegativeIntegerKeyword(
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "minContains";
 
+    private static readonly MinContainsKeyword[] shared = SharedKeywords.CreateIntegerCache(static value => new MinContainsKeyword(value));
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static MinContainsKeyword For(ulong value) => value < (ulong)shared.Length ? shared[value] : new(value);
+
     /// <inheritdoc/>
     public override string Name => KeywordName;
 }
@@ -390,6 +447,13 @@ public sealed class MaxPropertiesKeyword(ulong value) : NonNegativeIntegerKeywor
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "maxProperties";
 
+    private static readonly MaxPropertiesKeyword[] shared = SharedKeywords.CreateIntegerCache(static value => new MaxPropertiesKeyword(value));
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static MaxPropertiesKeyword For(ulong value) => value < (ulong)shared.Length ? shared[value] : new(value);
+
     /// <inheritdoc/>
     public override string Name => KeywordName;
 }
@@ -399,6 +463,13 @@ public sealed class MinPropertiesKeyword(ulong value) : NonNegativeIntegerKeywor
 {
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "minProperties";
+
+    private static readonly MinPropertiesKeyword[] shared = SharedKeywords.CreateIntegerCache(static value => new MinPropertiesKeyword(value));
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static MinPropertiesKeyword For(ulong value) => value < (ulong)shared.Length ? shared[value] : new(value);
 
     /// <inheritdoc/>
     public override string Name => KeywordName;

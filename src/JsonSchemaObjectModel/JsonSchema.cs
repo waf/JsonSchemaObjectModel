@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -258,10 +259,17 @@ public sealed class JsonSchema
     /// Returns the schema as JSON text.
     /// </summary>
     /// <remarks>
-    /// With the default options, the method reuses a buffer and a writer for each thread, so it allocates only the result.
+    /// - If <paramref name="options"/> has no encoder, the method uses <see cref="JavaScriptEncoder.UnsafeRelaxedJsonEscaping"/>.
+    ///   It escapes only what JSON requires, so a <c>pattern</c> such as <c>^[a-z]+$</c> and non-ASCII text stay readable.
+    /// - "Unsafe" applies only if you put the text into HTML or a script block. The JSON is always valid.
+    ///   For HTML-safe output, set <see cref="JsonWriterOptions.Encoder"/> to <see cref="JavaScriptEncoder.Default"/>.
+    /// - The encoder still escapes characters outside the Basic Multilingual Plane, for example emoji.
+    /// - <see cref="WriteTo"/> and <see cref="JsonSchemaConverter"/> use the encoder of the caller's writer.
+    /// - With the default options, the method reuses a buffer and a writer for each thread, so it allocates only the result.
     /// </remarks>
     public string ToJsonString(JsonWriterOptions options = default)
     {
+        options.Encoder ??= JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
         if (!PooledJsonWriter.CanReuse(options))
         {
             var buffer = new ArrayBufferWriter<byte>();
@@ -295,20 +303,10 @@ public sealed class JsonSchema
     /// <inheritdoc/>
     public override string ToString() => ToJsonString();
 
-    private static bool TryGetNamedSchema(ISubschemaMapKeyword map, ReadOnlySpan<char> token, [NotNullWhen(true)] out JsonSchema? schema)
-    {
-        if (token.Contains('~'))
-        {
-            return map.Schemas.TryGetValue(JsonPointerTokenizer.Unescape(token), out schema);
-        }
-
-        if (map is Keywords.SubschemaMapKeyword typed)
-        {
-            return typed.TryGetSchema(token, out schema);
-        }
-
-        return map.Schemas.TryGetValue(token.ToString(), out schema);
-    }
+    private static bool TryGetNamedSchema(ISubschemaMapKeyword map, ReadOnlySpan<char> token, [NotNullWhen(true)] out JsonSchema? schema) =>
+        token.Contains('~')
+            ? map.Schemas.TryGetValue(JsonPointerTokenizer.Unescape(token), out schema)
+            : map.Schemas.TryGetValue(token, out schema);
 
     private IJsonSchemaKeyword? FindKeywordForToken(ReadOnlySpan<char> token) =>
         token.Contains('~') ? GetKeyword(JsonPointerTokenizer.Unescape(token)) : GetKeyword(token);
@@ -419,14 +417,19 @@ public sealed class JsonSchema
 
         public ReadOnlySpan<byte> WrittenSpan => buffer.WrittenSpan;
 
+        private static readonly JsonWriterOptions writerOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
         public static bool CanReuse(JsonWriterOptions options) =>
-            !options.Indented && options.Encoder is null && !options.SkipValidation && options.MaxDepth == 0;
+            !options.Indented
+            && ReferenceEquals(options.Encoder, writerOptions.Encoder)
+            && !options.SkipValidation
+            && options.MaxDepth == 0;
 
         public Utf8JsonWriter Start()
         {
             if (writer is null)
             {
-                writer = new Utf8JsonWriter(buffer);
+                writer = new Utf8JsonWriter(buffer, writerOptions);
             }
             else
             {

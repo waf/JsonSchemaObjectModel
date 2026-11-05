@@ -58,6 +58,19 @@ public sealed class JsonSchemaKeywordRegistry
     }
 
     /// <summary>
+    /// Adds the reader of a keyword type that defines its own name and reader.
+    /// </summary>
+    /// <exception cref="ArgumentException">The registry already has a reader for the name of <typeparamref name="T"/>.</exception>
+    public JsonSchemaKeywordRegistry Add<T>()
+        where T : class, IJsonSchemaKeyword<T> => Add(T.KeywordName, static (value, context) => T.Read(value, context));
+
+    /// <summary>
+    /// Adds the reader of a keyword type, or replaces the reader that has the same name.
+    /// </summary>
+    public JsonSchemaKeywordRegistry Set<T>()
+        where T : class, IJsonSchemaKeyword<T> => Set(T.KeywordName, static (value, context) => T.Read(value, context));
+
+    /// <summary>
     /// Adds a keyword reader, or replaces the reader that has the same name.
     /// </summary>
     public JsonSchemaKeywordRegistry Set(string name, JsonSchemaKeywordReader reader)

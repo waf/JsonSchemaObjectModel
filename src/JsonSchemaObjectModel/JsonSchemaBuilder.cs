@@ -36,6 +36,10 @@ public sealed class JsonSchemaBuilder
     /// <summary>
     /// Adds a keyword, or replaces the keyword that has the same name.
     /// </summary>
+    /// <remarks>
+    /// The typed accessors, for example <c>schema.Type</c>, only see typed keywords.
+    /// An <see cref="UnknownKeyword"/> with a standard name is kept and written, but those accessors do not see it.
+    /// </remarks>
     public JsonSchemaBuilder Add(IJsonSchemaKeyword keyword)
     {
         ArgumentNullException.ThrowIfNull(keyword);
@@ -121,7 +125,7 @@ public sealed class JsonSchemaBuilder
     public JsonSchemaBuilder OneOf(IEnumerable<JsonSchema> schemas) => Add(new OneOfKeyword(schemas));
 
     /// <summary>Adds <c>not</c>.</summary>
-    public JsonSchemaBuilder Not(JsonSchema schema) => Add(new NotKeyword(schema));
+    public JsonSchemaBuilder Not(JsonSchema schema) => Add(NotKeyword.For(schema));
 
     /// <summary>Adds <c>if</c>.</summary>
     public JsonSchemaBuilder If(JsonSchema schema) => Add(new IfKeyword(schema));
@@ -147,10 +151,10 @@ public sealed class JsonSchemaBuilder
     public JsonSchemaBuilder PrefixItems(IEnumerable<JsonSchema> schemas) => Add(new PrefixItemsKeyword(schemas));
 
     /// <summary>Adds <c>items</c>.</summary>
-    public JsonSchemaBuilder Items(JsonSchema schema) => Add(new ItemsKeyword(schema));
+    public JsonSchemaBuilder Items(JsonSchema schema) => Add(ItemsKeyword.For(schema));
 
     /// <summary>Adds <c>contains</c>.</summary>
-    public JsonSchemaBuilder Contains(JsonSchema schema) => Add(new ContainsKeyword(schema));
+    public JsonSchemaBuilder Contains(JsonSchema schema) => Add(ContainsKeyword.For(schema));
 
     /// <summary>Adds <c>properties</c>.</summary>
     public JsonSchemaBuilder Properties(params ReadOnlySpan<(string Name, JsonSchema Schema)> properties) =>
@@ -173,18 +177,18 @@ public sealed class JsonSchemaBuilder
         Add(new PatternPropertiesKeyword(ToPairs(properties)));
 
     /// <summary>Adds <c>additionalProperties</c>.</summary>
-    public JsonSchemaBuilder AdditionalProperties(JsonSchema schema) => Add(new AdditionalPropertiesKeyword(schema));
+    public JsonSchemaBuilder AdditionalProperties(JsonSchema schema) => Add(AdditionalPropertiesKeyword.For(schema));
 
     /// <summary>Adds <c>propertyNames</c>.</summary>
-    public JsonSchemaBuilder PropertyNames(JsonSchema schema) => Add(new PropertyNamesKeyword(schema));
+    public JsonSchemaBuilder PropertyNames(JsonSchema schema) => Add(PropertyNamesKeyword.For(schema));
 
     //  Unevaluated vocabulary.
 
     /// <summary>Adds <c>unevaluatedItems</c>.</summary>
-    public JsonSchemaBuilder UnevaluatedItems(JsonSchema schema) => Add(new UnevaluatedItemsKeyword(schema));
+    public JsonSchemaBuilder UnevaluatedItems(JsonSchema schema) => Add(UnevaluatedItemsKeyword.For(schema));
 
     /// <summary>Adds <c>unevaluatedProperties</c>.</summary>
-    public JsonSchemaBuilder UnevaluatedProperties(JsonSchema schema) => Add(new UnevaluatedPropertiesKeyword(schema));
+    public JsonSchemaBuilder UnevaluatedProperties(JsonSchema schema) => Add(UnevaluatedPropertiesKeyword.For(schema));
 
     //  Validation vocabulary.
 
@@ -200,13 +204,12 @@ public sealed class JsonSchemaBuilder
     /// <summary>Adds <c>enum</c> with string values.</summary>
     public JsonSchemaBuilder Enum(params ReadOnlySpan<string> values)
     {
-        var primitives = new PrimitiveJsonValue[values.Length];
-        for (var index = 0; index < values.Length; index++)
+        foreach (var value in values)
         {
-            primitives[index] = PrimitiveJsonValue.From(values[index] ?? throw new ArgumentException("A value is null.", nameof(values)));
+            ArgumentNullException.ThrowIfNull(value, nameof(values));
         }
 
-        return Add(new EnumKeyword(ImmutableCollectionsMarshal.AsImmutableArray(primitives)));
+        return Add(new EnumKeyword(ImmutableArray.Create(values)));
     }
 
     /// <summary>Adds <c>enum</c> with string values.</summary>
@@ -253,34 +256,34 @@ public sealed class JsonSchemaBuilder
     public JsonSchemaBuilder ExclusiveMinimum(decimal value) => Add(new ExclusiveMinimumKeyword(JsonValues.From(value)));
 
     /// <summary>Adds <c>maxLength</c>.</summary>
-    public JsonSchemaBuilder MaxLength(ulong value) => Add(new MaxLengthKeyword(value));
+    public JsonSchemaBuilder MaxLength(ulong value) => Add(MaxLengthKeyword.For(value));
 
     /// <summary>Adds <c>minLength</c>.</summary>
-    public JsonSchemaBuilder MinLength(ulong value) => Add(new MinLengthKeyword(value));
+    public JsonSchemaBuilder MinLength(ulong value) => Add(MinLengthKeyword.For(value));
 
     /// <summary>Adds <c>pattern</c>. The value is an ECMA-262 regular expression.</summary>
     public JsonSchemaBuilder Pattern(string pattern) => Add(new PatternKeyword(pattern));
 
     /// <summary>Adds <c>maxItems</c>.</summary>
-    public JsonSchemaBuilder MaxItems(ulong value) => Add(new MaxItemsKeyword(value));
+    public JsonSchemaBuilder MaxItems(ulong value) => Add(MaxItemsKeyword.For(value));
 
     /// <summary>Adds <c>minItems</c>.</summary>
-    public JsonSchemaBuilder MinItems(ulong value) => Add(new MinItemsKeyword(value));
+    public JsonSchemaBuilder MinItems(ulong value) => Add(MinItemsKeyword.For(value));
 
     /// <summary>Adds <c>uniqueItems</c>.</summary>
-    public JsonSchemaBuilder UniqueItems(bool value = true) => Add(new UniqueItemsKeyword(value));
+    public JsonSchemaBuilder UniqueItems(bool value = true) => Add(UniqueItemsKeyword.For(value));
 
     /// <summary>Adds <c>maxContains</c>.</summary>
-    public JsonSchemaBuilder MaxContains(ulong value) => Add(new MaxContainsKeyword(value));
+    public JsonSchemaBuilder MaxContains(ulong value) => Add(MaxContainsKeyword.For(value));
 
     /// <summary>Adds <c>minContains</c>.</summary>
-    public JsonSchemaBuilder MinContains(ulong value) => Add(new MinContainsKeyword(value));
+    public JsonSchemaBuilder MinContains(ulong value) => Add(MinContainsKeyword.For(value));
 
     /// <summary>Adds <c>maxProperties</c>.</summary>
-    public JsonSchemaBuilder MaxProperties(ulong value) => Add(new MaxPropertiesKeyword(value));
+    public JsonSchemaBuilder MaxProperties(ulong value) => Add(MaxPropertiesKeyword.For(value));
 
     /// <summary>Adds <c>minProperties</c>.</summary>
-    public JsonSchemaBuilder MinProperties(ulong value) => Add(new MinPropertiesKeyword(value));
+    public JsonSchemaBuilder MinProperties(ulong value) => Add(MinPropertiesKeyword.For(value));
 
     /// <summary>Adds <c>required</c>.</summary>
     public JsonSchemaBuilder Required(params ReadOnlySpan<string> properties) =>
@@ -305,13 +308,13 @@ public sealed class JsonSchemaBuilder
     public JsonSchemaBuilder Default(JsonElement value) => Add(new DefaultKeyword(value));
 
     /// <summary>Adds <c>deprecated</c>.</summary>
-    public JsonSchemaBuilder Deprecated(bool value = true) => Add(new DeprecatedKeyword(value));
+    public JsonSchemaBuilder Deprecated(bool value = true) => Add(DeprecatedKeyword.For(value));
 
     /// <summary>Adds <c>readOnly</c>.</summary>
-    public JsonSchemaBuilder ReadOnly(bool value = true) => Add(new ReadOnlyKeyword(value));
+    public JsonSchemaBuilder ReadOnly(bool value = true) => Add(ReadOnlyKeyword.For(value));
 
     /// <summary>Adds <c>writeOnly</c>.</summary>
-    public JsonSchemaBuilder WriteOnly(bool value = true) => Add(new WriteOnlyKeyword(value));
+    public JsonSchemaBuilder WriteOnly(bool value = true) => Add(WriteOnlyKeyword.For(value));
 
     /// <summary>Adds <c>examples</c>.</summary>
     public JsonSchemaBuilder Examples(params IEnumerable<JsonElement> values) => Add(new ExamplesKeyword(values));
@@ -319,7 +322,7 @@ public sealed class JsonSchemaBuilder
     //  Format-annotation and content vocabularies.
 
     /// <summary>Adds <c>format</c>. <see cref="Formats"/> has the names that draft 2020-12 defines.</summary>
-    public JsonSchemaBuilder Format(string format) => Add(new FormatKeyword(format));
+    public JsonSchemaBuilder Format(string format) => Add(FormatKeyword.For(format));
 
     /// <summary>Adds <c>contentEncoding</c>.</summary>
     public JsonSchemaBuilder ContentEncoding(string encoding) => Add(new ContentEncodingKeyword(encoding));
@@ -330,16 +333,7 @@ public sealed class JsonSchemaBuilder
     /// <summary>Adds <c>contentSchema</c>.</summary>
     public JsonSchemaBuilder ContentSchema(JsonSchema schema) => Add(new ContentSchemaKeyword(schema));
 
-    private static OwnedSchemaMap ToMap(ReadOnlySpan<(string Name, JsonSchema Schema)> pairs)
-    {
-        var map = new OwnedSchemaMap(pairs.Length);
-        foreach (var (name, schema) in pairs)
-        {
-            map.AddUnique(name, schema, nameof(pairs));
-        }
-
-        return map;
-    }
+    private static SchemaMap ToMap(ReadOnlySpan<(string Name, JsonSchema Schema)> pairs) => SchemaMap.Create(pairs);
 
     private static IEnumerable<KeyValuePair<string, JsonSchema>> ToPairs(IEnumerable<(string Name, JsonSchema Schema)> pairs)
     {

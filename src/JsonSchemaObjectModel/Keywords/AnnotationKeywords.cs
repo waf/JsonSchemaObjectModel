@@ -39,6 +39,14 @@ public sealed class DeprecatedKeyword(bool value) : BooleanValueKeyword(value)
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "deprecated";
 
+    private static readonly DeprecatedKeyword sharedTrue = new(true);
+    private static readonly DeprecatedKeyword sharedFalse = new(false);
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static DeprecatedKeyword For(bool value) => value ? sharedTrue : sharedFalse;
+
     /// <inheritdoc/>
     public override string Name => KeywordName;
 }
@@ -49,6 +57,14 @@ public sealed class ReadOnlyKeyword(bool value) : BooleanValueKeyword(value)
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "readOnly";
 
+    private static readonly ReadOnlyKeyword sharedTrue = new(true);
+    private static readonly ReadOnlyKeyword sharedFalse = new(false);
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static ReadOnlyKeyword For(bool value) => value ? sharedTrue : sharedFalse;
+
     /// <inheritdoc/>
     public override string Name => KeywordName;
 }
@@ -58,6 +74,14 @@ public sealed class WriteOnlyKeyword(bool value) : BooleanValueKeyword(value)
 {
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "writeOnly";
+
+    private static readonly WriteOnlyKeyword sharedTrue = new(true);
+    private static readonly WriteOnlyKeyword sharedFalse = new(false);
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static WriteOnlyKeyword For(bool value) => value ? sharedTrue : sharedFalse;
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
@@ -85,6 +109,49 @@ public sealed class FormatKeyword(string value) : StringValueKeyword(value)
 {
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "format";
+
+    /// <summary>
+    /// One shared keyword for each format name that draft 2020-12 defines.
+    /// </summary>
+    internal static readonly FormatKeyword[] Standard =
+    [
+        new(Formats.DateTime),
+        new(Formats.Date),
+        new(Formats.Time),
+        new(Formats.Duration),
+        new(Formats.Email),
+        new(Formats.IdnEmail),
+        new(Formats.Hostname),
+        new(Formats.IdnHostname),
+        new(Formats.Ipv4),
+        new(Formats.Ipv6),
+        new(Formats.Uri),
+        new(Formats.UriReference),
+        new(Formats.Iri),
+        new(Formats.IriReference),
+        new(Formats.Uuid),
+        new(Formats.UriTemplate),
+        new(Formats.JsonPointer),
+        new(Formats.RelativeJsonPointer),
+        new(Formats.Regex),
+    ];
+
+    /// <summary>
+    /// Returns a shared keyword when one exists for the value, or a new one. The keyword is immutable, so it is safe to share.
+    /// </summary>
+    public static FormatKeyword For(string format)
+    {
+        ArgumentNullException.ThrowIfNull(format);
+        foreach (var keyword in Standard)
+        {
+            if (string.Equals(keyword.Value, format, StringComparison.Ordinal))
+            {
+                return keyword;
+            }
+        }
+
+        return new FormatKeyword(format);
+    }
 
     /// <inheritdoc/>
     public override string Name => KeywordName;

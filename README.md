@@ -5,7 +5,9 @@ An AOT-compatible JSON Schema (draft 2020-12) **object model** for .NET, built o
 It builds, parses, writes and navigates schemas. It does **not** validate instances. For validation, give the
 JSON it writes to a validator such as [LateApexEarlySpeed.Json.Schema](https://github.com/lateapexearlyspeed/Lateapexearlyspeed.JsonSchema).
 
-- All draft 2020-12 keywords are typed. Unknown keywords are kept as JSON, so every schema round-trips.
+- All draft 2020-12 keywords are typed. Unknown keywords are kept as JSON, so every schema round-trips to semantically
+  equal JSON: the same keywords in the same order, with the same values. String escapes and the form of a number such
+  as `2.0` can differ.
 - Custom keywords are typed too. You register a reader for each one. No reflection, no global state.
 - Native AOT and trimming safe (`IsAotCompatible`). A Native AOT smoke test runs in CI.
 - Every schema in the official [JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite)
@@ -47,27 +49,37 @@ MinItemsKeyword? minItems = restaurantSchema.FindSubschema("/properties/menus")?
 `JsonSchema` has a System.Text.Json converter, so it works as a property of a serialized type,
 including with source-generated `JsonSerializerContext`s.
 
+`ToJsonString` escapes only what JSON requires (`UnsafeRelaxedJsonEscaping`), so a `pattern` such as `^[a-z]+$`
+stays readable. Pass `new JsonWriterOptions { Encoder = JavaScriptEncoder.Default }` for HTML-safe output.
+`WriteTo` and the converter use the encoder of the writer that you give them.
+
 ## Custom keywords and vocabularies
 
-Implement `IJsonSchemaKeyword`, then register a reader:
+Implement `IJsonSchemaKeyword<T>`, then register the type:
 
 ```csharp
-sealed class PlaceholderKeyword(string placeholder) : IJsonSchemaKeyword
+sealed class PlaceholderKeyword(string placeholder) : IJsonSchemaKeyword<PlaceholderKeyword>
 {
-    public const string KeywordName = "placeholder";
+    public static string KeywordName => "placeholder";
     public string Name => KeywordName;
     public string Placeholder { get; } = placeholder;
+
+    public static PlaceholderKeyword Read(JsonElement value, JsonSchemaReadContext context) =>
+        new(context.ReadString(value));
+
     public void WriteValue(Utf8JsonWriter writer) => writer.WriteStringValue(Placeholder);
 }
 
 var readerOptions = new JsonSchemaReaderOptions(
-    JsonSchemaKeywordRegistry.CreateDraft202012()
-        .Add(PlaceholderKeyword.KeywordName, (value, context) => new PlaceholderKeyword(context.ReadString(value))));
+    JsonSchemaKeywordRegistry.CreateDraft202012().Add<PlaceholderKeyword>());
 
 var schema = JsonSchema.Parse(json, readerOptions);
 var serializerOptions = new JsonSerializerOptions { Converters = { new JsonSchemaConverter(readerOptions) } };
 ```
 
+- The compiler checks that the type has a name and a reader. The reader checks that `Name` matches `KeywordName`.
+- For a reader with run-time configuration, or one type for many names (for example every `x-*` keyword), implement
+  `IJsonSchemaKeyword` and register a delegate: `registry.Add("x-ui", (value, context) => ...)`.
 - Add a keyword to a schema with `JsonSchemaBuilder.Add(keyword)`.
 - The read context gives typed helpers (`ReadString`, `ReadSchema`, `ReadSchemaArray`, ...). Its `Error` method
   makes a `JsonException` whose `Path` is the JSON Pointer of the bad value.
