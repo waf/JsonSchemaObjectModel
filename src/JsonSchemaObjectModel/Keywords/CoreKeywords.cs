@@ -84,6 +84,9 @@ public sealed class DefsKeyword(IEnumerable<KeyValuePair<string, JsonSchema>> sc
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override DefsKeyword WithSchemas(SchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
 }
 
 /// <summary>

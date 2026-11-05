@@ -185,4 +185,7 @@ public sealed class ContentSchemaKeyword(JsonSchema schema) : SingleSubschemaKey
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override ContentSchemaKeyword WithSchema(JsonSchema schema) => ReferenceEquals(schema, Schema) ? this : new(schema);
 }

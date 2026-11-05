@@ -55,7 +55,9 @@ public interface IJsonSchemaKeyword<TSelf> : IJsonSchemaKeyword
 /// A keyword whose value is one subschema, for example <c>not</c> or <c>items</c>.
 /// </summary>
 /// <remarks>
-/// <see cref="JsonSchema.FindSubschema(ReadOnlySpan{char})"/> uses this interface to walk into the subschema.
+/// - <see cref="JsonSchema.FindSubschema(ReadOnlySpan{char})"/>, <c>JsonSchema.Walk</c> and
+///   <c>JsonSchema.Rewrite</c> use the three subschema interfaces to go into subschemas.
+/// - A custom keyword with subschemas must implement one of them. Otherwise those methods do not see its subschemas.
 /// </remarks>
 public interface ISingleSubschemaKeyword : IJsonSchemaKeyword
 {
@@ -63,6 +65,12 @@ public interface ISingleSubschemaKeyword : IJsonSchemaKeyword
     /// The subschema.
     /// </summary>
     JsonSchema Schema { get; }
+
+    /// <summary>
+    /// Returns a keyword of the same type with another subschema. <c>JsonSchema.Rewrite</c> uses it.
+    /// </summary>
+    /// <remarks>Return this keyword if <paramref name="schema"/> is the current subschema.</remarks>
+    ISingleSubschemaKeyword WithSchema(JsonSchema schema);
 }
 
 /// <summary>
@@ -74,6 +82,12 @@ public interface ISubschemaArrayKeyword : IJsonSchemaKeyword
     /// The subschemas, in document order.
     /// </summary>
     ImmutableArray<JsonSchema> Schemas { get; }
+
+    /// <summary>
+    /// Returns a keyword of the same type with other subschemas. <c>JsonSchema.Rewrite</c> uses it.
+    /// </summary>
+    /// <remarks>Return this keyword if <paramref name="schemas"/> is the current array.</remarks>
+    ISubschemaArrayKeyword WithSchemas(ImmutableArray<JsonSchema> schemas);
 }
 
 /// <summary>
@@ -85,4 +99,10 @@ public interface ISubschemaMapKeyword : IJsonSchemaKeyword
     /// The subschemas by name, in document order.
     /// </summary>
     SchemaMap Schemas { get; }
+
+    /// <summary>
+    /// Returns a keyword of the same type with other subschemas. <c>JsonSchema.Rewrite</c> uses it.
+    /// </summary>
+    /// <remarks>Return this keyword if <paramref name="schemas"/> is the current map.</remarks>
+    ISubschemaMapKeyword WithSchemas(SchemaMap schemas);
 }

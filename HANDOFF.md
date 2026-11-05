@@ -269,3 +269,13 @@ Recommendation 6, equality:
 
 Remaining: recommendation 5 (walk and rewrite), recommendation 4 (source generator, optional), raw emoji output (skip unless asked).
 
+## Follow-up 3 (2026-11-05): walk and rewrite
+
+Accepted defaults: the "with" methods go on the existing subschema interfaces (a breaking change for custom subschema keywords), `Walk` and `Rewrite` have both a struct-visitor overload and a delegate overload, and `With`/`Without` throw on boolean schemas.
+
+Step 1 and 2, done:
+
+- `ISingleSubschemaKeyword.WithSchema`, `ISubschemaArrayKeyword.WithSchemas` and `ISubschemaMapKeyword.WithSchemas` return a keyword of the same type with other subschemas, or `this` if nothing changed.
+- The 19 standard subschema keywords override them with covariant return types, for example `NotKeyword.WithSchema` returns a `NotKeyword`.
+- `JsonSchema.With(keyword)` replaces a keyword in place or adds it at the end. `JsonSchema.Without(name)` removes one. Both return the same schema when nothing changes, and throw for a boolean schema.
+

@@ -99,6 +99,9 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
   - Keep the delegate overloads `Add(name, reader)` and `Set(name, reader)`. They serve readers with run-time configuration, and one type for many names.
   - An `UnknownKeyword` can have a standard name, for example after a parse with a registry that has no reader for it. The builder accepts it, so a copy of a parsed schema works. The typed accessors only see typed keywords.
   - A keyword with subschemas also implements `ISingleSubschemaKeyword`, `ISubschemaArrayKeyword` or `ISubschemaMapKeyword`. `FindSubschema` and the tests use those interfaces to walk a schema, so a custom keyword with subschemas must implement one.
+    - Each interface has a "with" method (`WithSchema` or `WithSchemas`) that returns a keyword of the same type with other subschemas. It must return `this` when the subschemas are the current instances, so that edits share unchanged parts.
+    - The 19 standard subschema keywords override it with a covariant return type. The single-subschema keywords call their `For` factory, so `true` and `false` stay shared.
+  - `JsonSchema.With` and `JsonSchema.Without` make an edited copy of a schema. They throw for a boolean schema, because `true` is not `{}`.
   - Each standard keyword has a `KeywordName` constant. Its reader is registered in `StandardKeywordReaders.AddDraft202012`.
   - The test `Every_builder_method_writes_a_valid_draft_2020_12_schema_that_round_trips` fails when a standard keyword has no builder method.
 - **Reading:**

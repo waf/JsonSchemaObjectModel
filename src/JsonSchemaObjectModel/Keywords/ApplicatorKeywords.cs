@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace JsonSchemaObjectModel.Keywords;
 
 /// <summary>The <c>allOf</c> keyword.</summary>
@@ -8,6 +10,9 @@ public sealed class AllOfKeyword(IEnumerable<JsonSchema> schemas) : SubschemaArr
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override AllOfKeyword WithSchemas(ImmutableArray<JsonSchema> schemas) => schemas == Schemas ? this : new(schemas);
 }
 
 /// <summary>The <c>anyOf</c> keyword.</summary>
@@ -18,6 +23,9 @@ public sealed class AnyOfKeyword(IEnumerable<JsonSchema> schemas) : SubschemaArr
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override AnyOfKeyword WithSchemas(ImmutableArray<JsonSchema> schemas) => schemas == Schemas ? this : new(schemas);
 }
 
 /// <summary>The <c>oneOf</c> keyword.</summary>
@@ -28,6 +36,9 @@ public sealed class OneOfKeyword(IEnumerable<JsonSchema> schemas) : SubschemaArr
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override OneOfKeyword WithSchemas(ImmutableArray<JsonSchema> schemas) => schemas == Schemas ? this : new(schemas);
 }
 
 /// <summary>The <c>not</c> keyword.</summary>
@@ -49,6 +60,9 @@ public sealed class NotKeyword(JsonSchema schema) : SingleSubschemaKeyword(schem
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override NotKeyword WithSchema(JsonSchema schema) => ReferenceEquals(schema, Schema) ? this : For(schema);
 }
 
 /// <summary>The <c>if</c> keyword.</summary>
@@ -59,6 +73,9 @@ public sealed class IfKeyword(JsonSchema schema) : SingleSubschemaKeyword(schema
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override IfKeyword WithSchema(JsonSchema schema) => ReferenceEquals(schema, Schema) ? this : new(schema);
 }
 
 /// <summary>The <c>then</c> keyword.</summary>
@@ -69,6 +86,9 @@ public sealed class ThenKeyword(JsonSchema schema) : SingleSubschemaKeyword(sche
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override ThenKeyword WithSchema(JsonSchema schema) => ReferenceEquals(schema, Schema) ? this : new(schema);
 }
 
 /// <summary>The <c>else</c> keyword.</summary>
@@ -79,6 +99,9 @@ public sealed class ElseKeyword(JsonSchema schema) : SingleSubschemaKeyword(sche
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override ElseKeyword WithSchema(JsonSchema schema) => ReferenceEquals(schema, Schema) ? this : new(schema);
 }
 
 /// <summary>The <c>dependentSchemas</c> keyword.</summary>
@@ -90,6 +113,9 @@ public sealed class DependentSchemasKeyword(IEnumerable<KeyValuePair<string, Jso
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override DependentSchemasKeyword WithSchemas(SchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
 }
 
 /// <summary>The <c>prefixItems</c> keyword.</summary>
@@ -100,6 +126,9 @@ public sealed class PrefixItemsKeyword(IEnumerable<JsonSchema> schemas) : Subsch
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override PrefixItemsKeyword WithSchemas(ImmutableArray<JsonSchema> schemas) => schemas == Schemas ? this : new(schemas);
 }
 
 /// <summary>The <c>items</c> keyword.</summary>
@@ -121,6 +150,9 @@ public sealed class ItemsKeyword(JsonSchema schema) : SingleSubschemaKeyword(sch
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override ItemsKeyword WithSchema(JsonSchema schema) => ReferenceEquals(schema, Schema) ? this : For(schema);
 }
 
 /// <summary>The <c>contains</c> keyword.</summary>
@@ -142,6 +174,9 @@ public sealed class ContainsKeyword(JsonSchema schema) : SingleSubschemaKeyword(
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override ContainsKeyword WithSchema(JsonSchema schema) => ReferenceEquals(schema, Schema) ? this : For(schema);
 }
 
 /// <summary>The <c>properties</c> keyword.</summary>
@@ -152,6 +187,9 @@ public sealed class PropertiesKeyword(IEnumerable<KeyValuePair<string, JsonSchem
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override PropertiesKeyword WithSchemas(SchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
 }
 
 /// <summary>The <c>patternProperties</c> keyword.</summary>
@@ -163,6 +201,9 @@ public sealed class PatternPropertiesKeyword(IEnumerable<KeyValuePair<string, Js
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override PatternPropertiesKeyword WithSchemas(SchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
 }
 
 /// <summary>The <c>additionalProperties</c> keyword.</summary>
@@ -184,6 +225,9 @@ public sealed class AdditionalPropertiesKeyword(JsonSchema schema) : SingleSubsc
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override AdditionalPropertiesKeyword WithSchema(JsonSchema schema) => ReferenceEquals(schema, Schema) ? this : For(schema);
 }
 
 /// <summary>The <c>propertyNames</c> keyword.</summary>
@@ -205,6 +249,9 @@ public sealed class PropertyNamesKeyword(JsonSchema schema) : SingleSubschemaKey
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override PropertyNamesKeyword WithSchema(JsonSchema schema) => ReferenceEquals(schema, Schema) ? this : For(schema);
 }
 
 /// <summary>The <c>unevaluatedItems</c> keyword.</summary>
@@ -226,6 +273,9 @@ public sealed class UnevaluatedItemsKeyword(JsonSchema schema) : SingleSubschema
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override UnevaluatedItemsKeyword WithSchema(JsonSchema schema) => ReferenceEquals(schema, Schema) ? this : For(schema);
 }
 
 /// <summary>The <c>unevaluatedProperties</c> keyword.</summary>
@@ -247,4 +297,7 @@ public sealed class UnevaluatedPropertiesKeyword(JsonSchema schema) : SingleSubs
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
+
+    /// <inheritdoc/>
+    public override UnevaluatedPropertiesKeyword WithSchema(JsonSchema schema) => ReferenceEquals(schema, Schema) ? this : For(schema);
 }

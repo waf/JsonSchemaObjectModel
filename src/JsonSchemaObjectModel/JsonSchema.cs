@@ -170,6 +170,50 @@ public sealed class JsonSchema : IEquatable<JsonSchema>
     }
 
     /// <summary>
+    /// Returns a schema with <paramref name="keyword"/> added.
+    /// A keyword with the same name is replaced, and keeps its position. Other keywords are added at the end.
+    /// </summary>
+    /// <remarks>
+    /// - This schema does not change. The result shares the keywords that did not change.
+    /// - If this schema already has <paramref name="keyword"/> (the same instance), the method returns this schema.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">This is a boolean schema. Start from <see cref="Empty"/> instead.</exception>
+    public JsonSchema With(IJsonSchemaKeyword keyword)
+    {
+        ArgumentNullException.ThrowIfNull(keyword);
+        ThrowIfBoolean();
+        for (var position = 0; position < keywords.Length; position++)
+        {
+            if (string.Equals(keywords[position].Name, keyword.Name, StringComparison.Ordinal))
+            {
+                return ReferenceEquals(keywords[position], keyword) ? this : new JsonSchema(keywords.SetItem(position, keyword));
+            }
+        }
+
+        return new JsonSchema(keywords.Add(keyword));
+    }
+
+    /// <summary>
+    /// Returns a schema without the keyword that has the given name.
+    /// If this schema does not have that keyword, the method returns this schema.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">This is a boolean schema.</exception>
+    public JsonSchema Without(string keywordName)
+    {
+        ArgumentNullException.ThrowIfNull(keywordName);
+        ThrowIfBoolean();
+        for (var position = 0; position < keywords.Length; position++)
+        {
+            if (string.Equals(keywords[position].Name, keywordName, StringComparison.Ordinal))
+            {
+                return keywords.Length == 1 ? Empty : new JsonSchema(keywords.RemoveAt(position));
+            }
+        }
+
+        return this;
+    }
+
+    /// <summary>
     /// Finds a subschema with an RFC 6901 JSON Pointer, for example <c>/properties/menus/prefixItems/0</c>.
     /// </summary>
     /// <remarks>
@@ -390,6 +434,17 @@ public sealed class JsonSchema : IEquatable<JsonSchema>
         token.Contains('~')
             ? map.Schemas.TryGetValue(JsonPointerTokenizer.Unescape(token), out schema)
             : map.Schemas.TryGetValue(token, out schema);
+
+    //  A boolean schema has no keywords. true is not the same as {} (see Equals), so an edit must not turn one into the other.
+    private void ThrowIfBoolean()
+    {
+        if (BooleanValue is { } value)
+        {
+            throw new InvalidOperationException(
+                $"The boolean schema '{(value ? "true" : "false")}' has no keywords. Start from JsonSchema.Empty to make a schema object."
+            );
+        }
+    }
 
     private IJsonSchemaKeyword? FindKeywordForToken(ReadOnlySpan<char> token) =>
         token.Contains('~') ? GetKeyword(JsonPointerTokenizer.Unescape(token)) : GetKeyword(token);

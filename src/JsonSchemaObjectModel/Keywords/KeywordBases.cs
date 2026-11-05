@@ -24,6 +24,13 @@ public abstract class SingleSubschemaKeyword(JsonSchema schema) : ISingleSubsche
 
     /// <inheritdoc/>
     public void WriteValue(Utf8JsonWriter writer) => Schema.WriteTo(writer);
+
+    /// <summary>
+    /// Returns a keyword of the same type with another subschema, or this keyword if <paramref name="schema"/> is the current one.
+    /// </summary>
+    public abstract SingleSubschemaKeyword WithSchema(JsonSchema schema);
+
+    ISingleSubschemaKeyword ISingleSubschemaKeyword.WithSchema(JsonSchema schema) => WithSchema(schema);
 }
 
 /// <summary>
@@ -86,6 +93,14 @@ public abstract class SubschemaArrayKeyword : ISubschemaArrayKeyword, IKeywordVa
     /// <inheritdoc/>
     public ImmutableArray<JsonSchema> Schemas { get; }
 
+    /// <summary>
+    /// Returns a keyword of the same type with other subschemas, or this keyword if <paramref name="schemas"/> is the current array.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="schemas"/> is empty.</exception>
+    public abstract SubschemaArrayKeyword WithSchemas(ImmutableArray<JsonSchema> schemas);
+
+    ISubschemaArrayKeyword ISubschemaArrayKeyword.WithSchemas(ImmutableArray<JsonSchema> schemas) => WithSchemas(schemas);
+
     /// <inheritdoc/>
     public void WriteValue(Utf8JsonWriter writer)
     {
@@ -121,6 +136,13 @@ public abstract class SubschemaMapKeyword : ISubschemaMapKeyword, IKeywordValueE
 
     /// <inheritdoc/>
     public SchemaMap Schemas { get; }
+
+    /// <summary>
+    /// Returns a keyword of the same type with other subschemas, or this keyword if <paramref name="schemas"/> is the current map.
+    /// </summary>
+    public abstract SubschemaMapKeyword WithSchemas(SchemaMap schemas);
+
+    ISubschemaMapKeyword ISubschemaMapKeyword.WithSchemas(SchemaMap schemas) => WithSchemas(schemas);
 
     /// <inheritdoc/>
     public void WriteValue(Utf8JsonWriter writer)
