@@ -1,5 +1,9 @@
 # JsonSchemaObjectModel
 
+[![Nuget](https://img.shields.io/nuget/v/JsonSchemaObjectModel.svg?style=flat&color=005ca4)](https://www.nuget.org/packages/JsonSchemaObjectModel/)
+[![Code Coverage](https://codecov.io/gh/waf/JsonSchemaObjectModel/branch/main/graph/badge.svg?token=DVRUKSDMJ9)](https://app.codecov.io/gh/waf/JsonSchemaObjectModel)
+[![Build Status](https://github.com/waf/JsonSchemaObjectModel/workflows/main%20build/badge.svg)](https://github.com/waf/JsonSchemaObjectModel/actions/workflows/main.yml)
+
 An AOT-compatible JSON Schema (draft 2020-12) **object model** for .NET, built on System.Text.Json.
 
 It builds, parses, writes and navigates schemas. It does **not** validate instances. For validation, give the
