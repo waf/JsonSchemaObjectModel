@@ -31,23 +31,21 @@ public sealed partial class JsonSchema : IEquatable<JsonSchema>
     //  The hash code, created on first use. 0 means "not created yet". A race between threads computes the same value.
     private int hashCode;
 
-    private JsonSchema(bool value)
-    {
-        BooleanValue = value;
-        keywords = [];
-    }
+    //  Only True and False use this constructor. BooleanValue tells them apart by reference, so a schema
+    //  needs no field for it. The hashCode field then fits in the object without making it larger.
+    private JsonSchema() => keywords = [];
 
     internal JsonSchema(ImmutableArray<IJsonSchemaKeyword> keywords) => this.keywords = keywords;
 
     /// <summary>
     /// The boolean schema <c>true</c>. It accepts all instances.
     /// </summary>
-    public static JsonSchema True { get; } = new(true);
+    public static JsonSchema True { get; } = new();
 
     /// <summary>
     /// The boolean schema <c>false</c>. It rejects all instances.
     /// </summary>
-    public static JsonSchema False { get; } = new(false);
+    public static JsonSchema False { get; } = new();
 
     /// <summary>
     /// The empty schema object <c>{}</c>.
@@ -57,7 +55,10 @@ public sealed partial class JsonSchema : IEquatable<JsonSchema>
     /// <summary>
     /// The value of a boolean schema, or <see langword="null"/> for a schema object.
     /// </summary>
-    public bool? BooleanValue { get; }
+    public bool? BooleanValue =>
+        ReferenceEquals(this, True) ? true
+        : ReferenceEquals(this, False) ? false
+        : null;
 
     /// <summary>
     /// The keywords of a schema object, in document order.

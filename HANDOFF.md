@@ -293,3 +293,10 @@ Not done, by design: a pre-order rewrite, and walking into the JSON of unknown k
 
 Remaining: recommendation 4 (source generator, optional) and raw emoji output (skip unless asked).
 
+## Follow-up 4 (2026-11-05): benchmarks
+
+- A full run on `main` at `91332d2`, against `c9c3113` (before follow-ups 2 and 3), found Build and Parse allocations up by 2-3% (+144 B for each order line). Write and Navigate did not change.
+- Cause: the `hashCode` field that equality added made each `JsonSchema` 8 B larger. The note in follow-up 2 that it fit in padding was wrong.
+- Fix: `BooleanValue` is now computed by reference (`True` and `False` are the only boolean schemas), so the `bool?` field is gone and the `hashCode` field fits. Each schema is back to the baseline size.
+- After the fix, all allocations equal the baseline exactly: Build 6,792 / 46,472 B, Parse 9,216 / 62,120 B, Write 2,544 / 17,280 B, Navigate 32 B (1 / 9 order lines). Times are within noise. A rerun confirmed that one slower Write result was noise.
+
