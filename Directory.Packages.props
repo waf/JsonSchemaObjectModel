@@ -3,19 +3,19 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup Label="Library">
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.403" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="11.0.100" />
   </ItemGroup>
   <ItemGroup Label="Tests">
-    <PackageVersion Include="Microsoft.Testing.Platform.MSBuild" Version="2.5.2" />
-    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.2" />
+    <PackageVersion Include="Microsoft.Testing.Platform.MSBuild" Version="2.5.3" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.3" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
-    <PackageVersion Include="xunit.v3.mtp-v2" Version="4.0.2" />
-    <PackageVersion Include="LateApexEarlySpeed.Json.Schema" Version="4.2.3" />
+    <PackageVersion Include="xunit.v3.mtp-v2" Version="4.0.3" />
+    <PackageVersion Include="LateApexEarlySpeed.Json.Schema" Version="4.2.4" />
   </ItemGroup>
   <ItemGroup Label="Benchmarks">
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <!-- Benchmarks only. JsonSchema.Net 9.x binaries are under the json-everything maintenance-fee EULA. -->
     <PackageVersion Include="JsonSchema.Net" Version="9.6.0" />
-    <PackageVersion Include="NJsonSchema" Version="11.6.1" />
+    <PackageVersion Include="NJsonSchema" Version="11.6.2" />
   </ItemGroup>
 </Project>
