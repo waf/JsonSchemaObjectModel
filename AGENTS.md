@@ -171,7 +171,7 @@ See `PublishRelease.md`. In short:
 2. Add a `# Release <version>` section to `CHANGELOG.md`, and merge to `main`.
 3. Run `./publish-release.ps1`. It pushes a `v<version>` tag.
 
-The tag triggers `.github/workflows/release.yml`. That workflow packs the library and pushes it to nuget.org with the `NUGET_API_KEY` secret. It then creates a GitHub release from the changelog section.
+The tag triggers `.github/workflows/release.yml`. That workflow packs the library and pushes it to nuget.org with NuGet Trusted Publishing. The job runs in the `release` environment, and `NuGet/login` exchanges its GitHub OIDC token for a short-lived API key. The `NUGET_USER` secret holds the nuget.org profile name. Then the workflow creates a GitHub release from the changelog section.
 
 ## Gotchas
 
