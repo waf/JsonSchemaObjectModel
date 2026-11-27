@@ -18,6 +18,7 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <Content Include="TestData\**\*.json" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\JSON-Schema-Test-Suite\tests\draft2020-12\**\*.json" LinkBase="TestSuite\draft2020-12" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The suite keeps the tests for all drafts in one tree. TestSuite.cs selects the 2020-12 cases. Proposals are not part of a release. -->
+    <Content Include="..\JSON-Schema-Test-Suite\validation\tests\**\*.json" Exclude="..\JSON-Schema-Test-Suite\validation\tests\proposals\**" LinkBase="TestSuite\validation" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
