@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
 
     <PackageId>JsonSchemaObjectModel</PackageId>
     <PackageTags>json schema jsonschema json-schema draft2020-12 system.text.json aot</PackageTags>

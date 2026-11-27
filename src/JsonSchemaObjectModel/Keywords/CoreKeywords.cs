@@ -149,6 +149,10 @@ public sealed class VocabularyKeyword : IJsonSchemaKeyword, IKeywordValueEqualit
         Vocabularies = new ReadOnlyDictionary<string, bool>(ordered);
     }
 
+    //  The reader has already checked the names, so it gives its dictionary without a copy.
+    internal VocabularyKeyword(OrderedDictionary<string, bool> uniqueVocabularies) =>
+        Vocabularies = new ReadOnlyDictionary<string, bool>(uniqueVocabularies);
+
     /// <inheritdoc/>
     public string Name => KeywordName;
 

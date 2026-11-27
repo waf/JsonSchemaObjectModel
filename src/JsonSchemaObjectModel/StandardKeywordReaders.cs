@@ -364,10 +364,19 @@ internal static class StandardKeywordReaders
             throw context.Error("The value must be an object of vocabulary URIs to booleans.");
         }
 
-        var vocabularies = new List<KeyValuePair<string, bool>>(value.GetPropertyCount());
+        var vocabularies = new OrderedDictionary<string, bool>(value.GetPropertyCount(), StringComparer.Ordinal);
         foreach (var property in value.EnumerateObject())
         {
-            vocabularies.Add(new(property.Name, context.ReadBoolean(property.Value)));
+            var uri = property.Name;
+            if (property.Value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            {
+                throw ErrorAt(context, uri, "The value must be a boolean.");
+            }
+
+            if (!vocabularies.TryAdd(uri, property.Value.GetBoolean()))
+            {
+                throw ErrorAt(context, uri, $"The vocabulary '{uri}' occurs more than once.");
+            }
         }
 
         return new VocabularyKeyword(vocabularies);
@@ -380,12 +389,37 @@ internal static class StandardKeywordReaders
             throw context.Error("The value must be an object of string arrays.");
         }
 
-        var dependencies = new List<KeyValuePair<string, IEnumerable<string>>>(value.GetPropertyCount());
+        var dependencies = new OrderedDictionary<string, ImmutableArray<string>>(value.GetPropertyCount(), StringComparer.Ordinal);
         foreach (var property in value.EnumerateObject())
         {
-            dependencies.Add(new(property.Name, context.ReadUniqueStringArray(property.Value)));
+            var name = property.Name;
+            ImmutableArray<string> required;
+            try
+            {
+                required = context.ReadUniqueStringArray(property.Value);
+            }
+            catch (SchemaReadException exception)
+            {
+                exception.AddParent(name);
+                throw;
+            }
+
+            if (!dependencies.TryAdd(name, required))
+            {
+                throw ErrorAt(context, name, $"The property '{name}' occurs more than once.");
+            }
         }
 
         return new DependentRequiredKeyword(dependencies);
+    }
+
+    /// <summary>
+    /// Creates an error for the member <paramref name="name"/> of the keyword value.
+    /// </summary>
+    private static SchemaReadException ErrorAt(JsonSchemaReadContext context, string name, string message)
+    {
+        var exception = (SchemaReadException)context.Error(message);
+        exception.AddParent(name);
+        return exception;
     }
 }
