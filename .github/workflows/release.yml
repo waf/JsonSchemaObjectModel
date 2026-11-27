@@ -9,11 +9,17 @@ on:
 
 permissions:
   contents: write # needed to create the GitHub release
+  id-token: write # needed for NuGet Trusted Publishing (GitHub OIDC token -> short-lived NuGet API key)
 
 jobs:
   build:
 
     runs-on: windows-latest
+
+    # Must match the "Environment" field of the nuget.org Trusted Publishing policy. Configure the
+    # environment's protection rules in GitHub (Settings > Environments > release) to only allow
+    # v* tags, so a modified copy of this workflow on some other branch can't publish.
+    environment: release
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,8 +35,16 @@ jobs:
     - name: Pack
       run: dotnet pack ./src/JsonSchemaObjectModel/JsonSchemaObjectModel.csproj -c Release -p:ContinuousIntegrationBuild=true
 
+    # Exchange this job's GitHub OIDC token for a nuget.org API key (Trusted Publishing).
+    # The key is valid for 1 hour, so request it right before pushing.
+    - name: NuGet login
+      id: nuget-login
+      uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+      with:
+        user: ${{ secrets.NUGET_USER }} # nuget.org profile name, not email
+
     - name: Publish to NuGet
-      run: dotnet nuget push --skip-duplicate --api-key ${{ secrets.NUGET_API_KEY }} --source 'https://api.nuget.org/v3/index.json' .\src\JsonSchemaObjectModel\bin\Release\JsonSchemaObjectModel.*.nupkg
+      run: dotnet nuget push --skip-duplicate --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source 'https://api.nuget.org/v3/index.json' .\src\JsonSchemaObjectModel\bin\Release\JsonSchemaObjectModel.*.nupkg
 
     # Pull the notes for this version straight out of CHANGELOG.md so the GitHub release
     # mirrors what's already curated there (CHANGELOG.md is the single source of truth).
