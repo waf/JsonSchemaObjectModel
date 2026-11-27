@@ -5,18 +5,18 @@ using System.Text.Json.Serialization;
 using JsonSchemaObjectModel;
 using JsonSchemaObjectModel.Keywords;
 
-var readerOptions = new JsonSchemaReaderOptions(
+var readerOptions = new JsonSchemaReadOptions(
     JsonSchemaKeywordRegistry
         .CreateDraft202012()
         .Add<PlaceholderKeyword>()
 );
 
 JsonSchema schema = new JsonSchemaBuilder()
-    .Schema(SchemaKeyword.Draft202012)
-    .Type(SchemaValueType.Object)
+    .SchemaDialect(SchemaKeyword.Draft202012)
+    .Type(JsonSchemaType.Object)
     .Properties(
         ("id", new JsonSchemaBuilder().Const(Guid.Parse("3f2504e0-4f89-11d3-9a0c-0305e82c3301"))),
-        ("customerName", new JsonSchemaBuilder().Type(SchemaValueType.String).Add(new PlaceholderKeyword("e.g. Alex Smith"))),
+        ("customerName", new JsonSchemaBuilder().Type(JsonSchemaType.String).Add(new PlaceholderKeyword("e.g. Alex Smith"))),
         ("menus", new JsonSchemaBuilder().PrefixItems(new JsonSchemaBuilder().Enum("LUNCH", "DINNER")).MinItems(1).MaxItems(1))
     )
     .Required("customerName");
@@ -34,7 +34,7 @@ Check(
 Check(read.Schema.FindSubschema("/properties/menus/prefixItems/0")?.GetKeyword<EnumKeyword>() is not null, "FindSubschema failed.");
 Check(read.Schema.Required is ["customerName"], "The required accessor failed.");
 
-var withoutConst = read.Schema.Rewrite((JsonSchema current, in SchemaLocation _) =>
+var withoutConst = read.Schema.Rewrite((JsonSchema current, in JsonSchemaLocation _) =>
     current.BooleanValue is null ? current.Without(ConstKeyword.KeywordName) : current);
 Check(
     withoutConst.FindSubschema("/properties/id")?.GetKeyword<ConstKeyword>() is null
@@ -42,7 +42,7 @@ Check(
     "Rewrite failed."
 );
 var pointers = new List<string>();
-read.Schema.Walk((JsonSchema _, in SchemaLocation location) =>
+read.Schema.Walk((JsonSchema _, in JsonSchemaLocation location) =>
 {
     pointers.Add(location.ToPointer());
     return WalkAction.Continue;

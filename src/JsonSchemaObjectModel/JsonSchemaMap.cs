@@ -21,7 +21,7 @@ namespace JsonSchemaObjectModel;
     "CA1710:Identifiers should have correct suffix",
     Justification = "JSON Schema calls these values maps. SchemaDictionary would read worse."
 )]
-public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquatable<SchemaMap>
+public sealed class JsonSchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquatable<JsonSchemaMap>
 {
     //  Maps in a schema are usually small. A linear search of a few names is faster than a hash lookup.
     private const int MaxLinearSearch = 16;
@@ -29,7 +29,7 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
     private readonly KeyValuePair<string, JsonSchema>[] entries;
     private readonly Dictionary<string, int>? index;
 
-    private SchemaMap(KeyValuePair<string, JsonSchema>[] entries, Dictionary<string, int>? index)
+    private JsonSchemaMap(KeyValuePair<string, JsonSchema>[] entries, Dictionary<string, int>? index)
     {
         this.entries = entries;
         this.index = index;
@@ -38,7 +38,7 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
     /// <summary>
     /// The empty map.
     /// </summary>
-    public static SchemaMap Empty { get; } = new([], null);
+    public static JsonSchemaMap Empty { get; } = new([], null);
 
     /// <summary>
     /// The number of entries.
@@ -72,13 +72,13 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
         TryGetValue(key, out var schema) ? schema : throw new KeyNotFoundException($"The map has no entry named '{key}'.");
 
     /// <summary>
-    /// Creates a map. The order of <paramref name="entries"/> is kept. A <see cref="SchemaMap"/> is returned as it is.
+    /// Creates a map. The order of <paramref name="entries"/> is kept. A <see cref="JsonSchemaMap"/> is returned as it is.
     /// </summary>
     /// <exception cref="ArgumentException">A name occurs more than once, or a name or schema is null.</exception>
-    public static SchemaMap Create(IEnumerable<KeyValuePair<string, JsonSchema>> entries)
+    public static JsonSchemaMap Create(IEnumerable<KeyValuePair<string, JsonSchema>> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
-        if (entries is SchemaMap map)
+        if (entries is JsonSchemaMap map)
         {
             return map;
         }
@@ -99,7 +99,7 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
     /// Creates a map. The order of <paramref name="entries"/> is kept.
     /// </summary>
     /// <exception cref="ArgumentException">A name occurs more than once, or a name or schema is null.</exception>
-    public static SchemaMap Create(params ReadOnlySpan<(string Name, JsonSchema Schema)> entries)
+    public static JsonSchemaMap Create(params ReadOnlySpan<(string Name, JsonSchema Schema)> entries)
     {
         var array = new KeyValuePair<string, JsonSchema>[entries.Length];
         for (var position = 0; position < entries.Length; position++)
@@ -142,15 +142,15 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
     /// </summary>
     /// <param name="entries">The entries, with unique names.</param>
     /// <param name="index">The index of the entries, if <see cref="NeedsIndex"/> is <see langword="true"/> for their count.</param>
-    internal static SchemaMap FromUniqueEntries(KeyValuePair<string, JsonSchema>[] entries, Dictionary<string, int>? index) =>
-        entries.Length == 0 ? Empty : new SchemaMap(entries, index);
+    internal static JsonSchemaMap FromUniqueEntries(KeyValuePair<string, JsonSchema>[] entries, Dictionary<string, int>? index) =>
+        entries.Length == 0 ? Empty : new JsonSchemaMap(entries, index);
 
     /// <summary>
     /// Creates a map that uses <paramref name="entries"/> without a copy. The caller must not change the array.
     /// </summary>
     internal static bool TryCreate(
         KeyValuePair<string, JsonSchema>[] entries,
-        [NotNullWhen(true)] out SchemaMap? map,
+        [NotNullWhen(true)] out JsonSchemaMap? map,
         [NotNullWhen(false)] out string? duplicate
     )
     {
@@ -191,7 +191,7 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
             }
         }
 
-        map = new SchemaMap(entries, index);
+        map = new JsonSchemaMap(entries, index);
         duplicate = null;
         return true;
     }
@@ -246,7 +246,7 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
     /// Returns <see langword="true"/> if the two maps have the same names with equal subschemas.
     /// The order of the entries is not important, as for a JSON object.
     /// </summary>
-    public bool Equals([NotNullWhen(true)] SchemaMap? other)
+    public bool Equals([NotNullWhen(true)] JsonSchemaMap? other)
     {
         if (ReferenceEquals(this, other))
         {
@@ -270,7 +270,7 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
     }
 
     /// <inheritdoc/>
-    public override bool Equals(object? obj) => Equals(obj as SchemaMap);
+    public override bool Equals(object? obj) => Equals(obj as JsonSchemaMap);
 
     /// <summary>
     /// Returns a hash code. Equal maps have the same hash code.
@@ -297,7 +297,7 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
     IEnumerator IEnumerable.GetEnumerator() => entries.GetEnumerator();
 
     /// <summary>
-    /// Enumerates the entries of a <see cref="SchemaMap"/> in document order.
+    /// Enumerates the entries of a <see cref="JsonSchemaMap"/> in document order.
     /// </summary>
     [StructLayout(LayoutKind.Auto)]
     public struct Enumerator
@@ -319,7 +319,7 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
     }
 
     /// <summary>
-    /// The names of a <see cref="SchemaMap"/>, in document order. It is a view of the map, not a copy.
+    /// The names of a <see cref="JsonSchemaMap"/>, in document order. It is a view of the map, not a copy.
     /// </summary>
     /// <remarks>
     /// The default value is an empty collection.
@@ -343,7 +343,7 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
     }
 
     /// <summary>
-    /// Enumerates the names of a <see cref="SchemaMap"/>.
+    /// Enumerates the names of a <see cref="JsonSchemaMap"/>.
     /// </summary>
     [StructLayout(LayoutKind.Auto)]
     public struct KeyEnumerator
@@ -360,7 +360,7 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
     }
 
     /// <summary>
-    /// The subschemas of a <see cref="SchemaMap"/>, in document order. It is a view of the map, not a copy.
+    /// The subschemas of a <see cref="JsonSchemaMap"/>, in document order. It is a view of the map, not a copy.
     /// </summary>
     /// <remarks>
     /// The default value is an empty collection.
@@ -384,7 +384,7 @@ public sealed class SchemaMap : IReadOnlyDictionary<string, JsonSchema>, IEquata
     }
 
     /// <summary>
-    /// Enumerates the subschemas of a <see cref="SchemaMap"/>.
+    /// Enumerates the subschemas of a <see cref="JsonSchemaMap"/>.
     /// </summary>
     [StructLayout(LayoutKind.Auto)]
     public struct ValueEnumerator

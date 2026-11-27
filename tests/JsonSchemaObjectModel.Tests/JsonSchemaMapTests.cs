@@ -2,7 +2,7 @@ using JsonSchemaObjectModel.Keywords;
 
 namespace JsonSchemaObjectModel.Tests;
 
-public class SchemaMapTests
+public class JsonSchemaMapTests
 {
     [Theory]
     [InlineData(3)]
@@ -10,7 +10,7 @@ public class SchemaMapTests
     public void Lookups_by_string_and_span_find_every_entry_in_order(int count)
     {
         var names = Enumerable.Range(0, count).Select(index => $"menu{index}").ToArray();
-        var map = SchemaMap.Create(names.Select(name => KeyValuePair.Create(name, (JsonSchema)new JsonSchemaBuilder().Title(name))));
+        var map = JsonSchemaMap.Create(names.Select(name => KeyValuePair.Create(name, (JsonSchema)new JsonSchemaBuilder().Title(name))));
 
         Assert.Equal(names, map.Keys);
         Assert.Equal(names, map.Values.Select(schema => schema.GetKeyword<TitleKeyword>()!.Value));
@@ -35,7 +35,7 @@ public class SchemaMapTests
         var entries = Enumerable.Range(0, count).Select(index => KeyValuePair.Create($"menu{index}", JsonSchema.True)).ToList();
         entries.Add(KeyValuePair.Create("menu1", JsonSchema.False));
 
-        Assert.Throws<ArgumentException>(() => SchemaMap.Create(entries));
+        Assert.Throws<ArgumentException>(() => JsonSchemaMap.Create(entries));
         var exception = Assert.ThrowsAny<System.Text.Json.JsonException>(() =>
             JsonSchema.Parse("{\"properties\":{" + string.Join(",", entries.Select(entry => $"\"{entry.Key}\":true")) + "}}")
         );
@@ -45,10 +45,10 @@ public class SchemaMapTests
     [Fact]
     public void A_keyword_shares_a_map_without_a_copy()
     {
-        var map = SchemaMap.Create(("lunch", JsonSchema.True), ("dinner", JsonSchema.False));
+        var map = JsonSchemaMap.Create(("lunch", JsonSchema.True), ("dinner", JsonSchema.False));
 
         Assert.Same(map, new PropertiesKeyword(map).Schemas);
-        Assert.Same(map, SchemaMap.Create(map));
+        Assert.Same(map, JsonSchemaMap.Create(map));
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class SchemaMapTests
         }
 
         Assert.Equal(["lunch", "dinner", "brunch"], names);
-        Assert.Same(SchemaMap.Empty, JsonSchema.Parse("""{"properties":{}}""").Properties);
+        Assert.Same(JsonSchemaMap.Empty, JsonSchema.Parse("""{"properties":{}}""").Properties);
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public class SchemaMapTests
         Assert.Equal(3, map.Keys.Count);
         Assert.Equal(["lunch", "dinner", "brunch"], map.Keys);
 
-        static void Count(SchemaMap map, ref int nameLength, ref int schemaCount)
+        static void Count(JsonSchemaMap map, ref int nameLength, ref int schemaCount)
         {
             foreach (var name in map.Keys)
             {
@@ -102,7 +102,7 @@ public class SchemaMapTests
     [Fact]
     public void The_dictionary_interfaces_give_the_same_entries_in_order()
     {
-        var map = SchemaMap.Create(("lunch", JsonSchema.True), ("dinner", JsonSchema.False));
+        var map = JsonSchemaMap.Create(("lunch", JsonSchema.True), ("dinner", JsonSchema.False));
         IReadOnlyDictionary<string, JsonSchema> dictionary = map;
 
         Assert.Equal(["lunch", "dinner"], dictionary.Keys);
@@ -132,28 +132,28 @@ public class SchemaMapTests
     [Fact]
     public void Maps_with_different_entries_are_not_equal()
     {
-        var map = SchemaMap.Create(("lunch", JsonSchema.True), ("dinner", JsonSchema.False));
+        var map = JsonSchemaMap.Create(("lunch", JsonSchema.True), ("dinner", JsonSchema.False));
 
         Assert.True(map.Equals(map));
-        Assert.True(map.Equals((object)SchemaMap.Create(("dinner", JsonSchema.False), ("lunch", JsonSchema.True))));
-        Assert.False(map.Equals((object)SchemaMap.Create(("lunch", JsonSchema.True), ("dinner", JsonSchema.True))));
-        Assert.False(map.Equals((object)SchemaMap.Create(("lunch", JsonSchema.True), ("brunch", JsonSchema.False))));
+        Assert.True(map.Equals((object)JsonSchemaMap.Create(("dinner", JsonSchema.False), ("lunch", JsonSchema.True))));
+        Assert.False(map.Equals((object)JsonSchemaMap.Create(("lunch", JsonSchema.True), ("dinner", JsonSchema.True))));
+        Assert.False(map.Equals((object)JsonSchemaMap.Create(("lunch", JsonSchema.True), ("brunch", JsonSchema.False))));
         Assert.False(map.Equals(null));
         Assert.False(map.Equals("lunch"));
-        Assert.Same(SchemaMap.Empty, SchemaMap.Create());
-        Assert.Same(SchemaMap.Empty, SchemaMap.Create(new List<KeyValuePair<string, JsonSchema>>()));
+        Assert.Same(JsonSchemaMap.Empty, JsonSchemaMap.Create());
+        Assert.Same(JsonSchemaMap.Empty, JsonSchemaMap.Create(new List<KeyValuePair<string, JsonSchema>>()));
     }
 
     [Fact]
     public void Default_collections_are_empty()
     {
-        Assert.Empty(default(SchemaMap.KeyCollection));
-        Assert.Empty(default(SchemaMap.ValueCollection));
-        var defaultKeyCount = default(SchemaMap.KeyCollection).Count;
+        Assert.Empty(default(JsonSchemaMap.KeyCollection));
+        Assert.Empty(default(JsonSchemaMap.ValueCollection));
+        var defaultKeyCount = default(JsonSchemaMap.KeyCollection).Count;
         Assert.Equal(0, defaultKeyCount);
 
         var count = 0;
-        foreach (var _ in default(SchemaMap.ValueCollection))
+        foreach (var _ in default(JsonSchemaMap.ValueCollection))
         {
             count++;
         }
@@ -176,7 +176,7 @@ public class SharedKeywordTests
             .MinItems(1)
             .MaxLength(16)
             .UniqueItems()
-            .Format(Formats.Email)
+            .Format(JsonSchemaFormats.Email)
             .Build();
 
         for (var index = 0; index < parsed.Keywords.Length; index++)
@@ -202,7 +202,7 @@ public class TypedKeywordRegistrationTests
     [Fact]
     public void Add_T_registers_the_type_by_its_own_name()
     {
-        var options = new JsonSchemaReaderOptions(JsonSchemaKeywordRegistry.CreateDraft202012().Add<CuisineKeyword>());
+        var options = new JsonSchemaReadOptions(JsonSchemaKeywordRegistry.CreateDraft202012().Add<CuisineKeyword>());
 
         var schema = JsonSchema.Parse("""{"cuisine":"thai"}""", options);
 
@@ -218,7 +218,7 @@ public class TypedKeywordRegistrationTests
         var registry = JsonSchemaKeywordRegistry.CreateDraft202012().Add<CuisineKeyword>();
 
         Assert.Throws<ArgumentException>(() => registry.Add<CuisineKeyword>());
-        Assert.Throws<ArgumentException>(() => registry.Add(CuisineKeyword.KeywordName, (value, _) => new UnknownKeyword("cuisine", value)));
+        Assert.Throws<ArgumentException>(() => registry.Add(CuisineKeyword.KeywordName, (value, _) => new UntypedKeyword("cuisine", value)));
         registry.Set<CuisineKeyword>();
     }
 

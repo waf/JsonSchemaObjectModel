@@ -86,7 +86,7 @@ public sealed class DefsKeyword(IEnumerable<KeyValuePair<string, JsonSchema>> sc
     public override string Name => KeywordName;
 
     /// <inheritdoc/>
-    public override DefsKeyword WithSchemas(SchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
+    public override DefsKeyword WithSchemas(JsonSchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
 }
 
 /// <summary>
@@ -177,10 +177,10 @@ public sealed class VocabularyKeyword : IJsonSchemaKeyword, IKeywordValueEqualit
 /// <summary>
 /// A keyword with no registered reader. It keeps the value as JSON, so the schema round-trips.
 /// </summary>
-public sealed class UnknownKeyword : IJsonSchemaKeyword, IKeywordValueEquality
+public sealed class UntypedKeyword : IJsonSchemaKeyword, IKeywordValueEquality
 {
     bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other) =>
-        JsonValueEquality.ElementEquals(Value, ((UnknownKeyword)other).Value);
+        JsonValueEquality.ElementEquals(Value, ((UntypedKeyword)other).Value);
 
     int IKeywordValueEquality.GetValueHashCode() =>
         JsonValueEquality.Element(Value);
@@ -188,7 +188,7 @@ public sealed class UnknownKeyword : IJsonSchemaKeyword, IKeywordValueEquality
     /// <summary>
     /// Creates the keyword.
     /// </summary>
-    public UnknownKeyword(string name, JsonElement value)
+    public UntypedKeyword(string name, JsonElement value)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         Name = name;

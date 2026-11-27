@@ -8,8 +8,8 @@ namespace JsonSchemaObjectModel.Tests;
 /// </summary>
 public class EqualityTests
 {
-    //  A registry with no readers makes every keyword an UnknownKeyword. Its schemas compare by JSON only.
-    private static readonly JsonSchemaReaderOptions untyped = new(new JsonSchemaKeywordRegistry());
+    //  A registry with no readers makes every keyword an UntypedKeyword. Its schemas compare by JSON only.
+    private static readonly JsonSchemaReadOptions untyped = new(new JsonSchemaKeywordRegistry());
 
     public static TheoryData<string, int> Cases => TestSuite.SchemaCases();
 
@@ -67,7 +67,7 @@ public class EqualityTests
             (new JsonSchemaBuilder().Const(2), """{"const":2.0}"""),
             (new JsonSchemaBuilder().Const(12.50m), """{"const":12.5}"""),
             (new JsonSchemaBuilder().Const(0.25), """{"const":25e-2}"""),
-            (new JsonSchemaBuilder().Const(JsonValues.From("Pad thai")), """{"const":"Pad thai"}"""),
+            (new JsonSchemaBuilder().Const(JsonElements.From("Pad thai")), """{"const":"Pad thai"}"""),
             (new JsonSchemaBuilder().Const(guid), """{"const":"3f2504e0-4f89-11d3-9a0c-0305e82c3301"}"""),
         ];
 
@@ -170,11 +170,11 @@ public class EqualityTests
     public void A_built_schema_equals_the_parse_of_the_same_JSON()
     {
         JsonSchema built = new JsonSchemaBuilder()
-            .Schema(SchemaKeyword.Draft202012)
-            .Type(SchemaValueType.Object)
+            .SchemaDialect(SchemaKeyword.Draft202012)
+            .Type(JsonSchemaType.Object)
             .Properties(
-                ("dish", new JsonSchemaBuilder().Type(SchemaValueType.String).MinLength(1)),
-                ("price", new JsonSchemaBuilder().Type(SchemaValueType.Number).Minimum(0).MultipleOf(0.01m)),
+                ("dish", new JsonSchemaBuilder().Type(JsonSchemaType.String).MinLength(1)),
+                ("price", new JsonSchemaBuilder().Type(JsonSchemaType.Number).Minimum(0).MultipleOf(0.01m)),
                 ("size", new JsonSchemaBuilder().Enum("S", "M", "L")),
                 ("currency", new JsonSchemaBuilder().Const("THB")),
                 ("quantity", new JsonSchemaBuilder().Const(1.50m)),
@@ -199,14 +199,14 @@ public class EqualityTests
     [Fact]
     public void A_custom_keyword_compares_by_its_JSON()
     {
-        var options = new JsonSchemaReaderOptions(JsonSchemaKeywordRegistry.CreateDraft202012().Add<PlaceholderKeyword>());
+        var options = new JsonSchemaReadOptions(JsonSchemaKeywordRegistry.CreateDraft202012().Add<PlaceholderKeyword>());
         const string json = """{"type":"string","placeholder":"Pad thai"}""";
 
         var custom = JsonSchema.Parse(json, options);
         var unknown = JsonSchema.Parse(json);
 
         Assert.IsType<PlaceholderKeyword>(custom.Keywords[1]);
-        Assert.IsType<UnknownKeyword>(unknown.Keywords[1]);
+        Assert.IsType<UntypedKeyword>(unknown.Keywords[1]);
         AssertEqual(custom, unknown);
         AssertEqual(custom, JsonSchema.Parse(json, options));
         Assert.NotEqual(custom, JsonSchema.Parse("""{"type":"string","placeholder":"Green curry"}""", options));
@@ -215,12 +215,12 @@ public class EqualityTests
     [Fact]
     public void SchemaMap_equality_ignores_the_order_of_entries()
     {
-        var first = SchemaMap.Create(("starter", true), ("main", new JsonSchemaBuilder().MinLength(1)));
-        var second = SchemaMap.Create(("main", new JsonSchemaBuilder().MinLength(1)), ("starter", true));
+        var first = JsonSchemaMap.Create(("starter", true), ("main", new JsonSchemaBuilder().MinLength(1)));
+        var second = JsonSchemaMap.Create(("main", new JsonSchemaBuilder().MinLength(1)), ("starter", true));
 
         Assert.Equal(first, second);
         Assert.Equal(first.GetHashCode(), second.GetHashCode());
-        Assert.NotEqual(first, SchemaMap.Create(("starter", true)));
+        Assert.NotEqual(first, JsonSchemaMap.Create(("starter", true)));
     }
 
     [Fact]

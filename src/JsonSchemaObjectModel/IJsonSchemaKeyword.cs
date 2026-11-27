@@ -55,8 +55,8 @@ public interface IJsonSchemaKeyword<TSelf> : IJsonSchemaKeyword
 /// A keyword whose value is one subschema, for example <c>not</c> or <c>items</c>.
 /// </summary>
 /// <remarks>
-/// - <see cref="JsonSchema.FindSubschema(ReadOnlySpan{char})"/>, <see cref="JsonSchema.Walk(SchemaVisitor)"/> and
-///   <see cref="JsonSchema.Rewrite(SchemaRewriter)"/> use the three subschema interfaces to go into subschemas.
+/// - <see cref="JsonSchema.FindSubschema(ReadOnlySpan{char})"/>, <see cref="JsonSchema.Walk(JsonSchemaVisitor)"/> and
+///   <see cref="JsonSchema.Rewrite(JsonSchemaRewriter)"/> use the three subschema interfaces to go into subschemas.
 /// - A custom keyword with subschemas must implement one of them. Otherwise those methods do not see its subschemas.
 /// </remarks>
 public interface ISingleSubschemaKeyword : IJsonSchemaKeyword
@@ -67,7 +67,7 @@ public interface ISingleSubschemaKeyword : IJsonSchemaKeyword
     JsonSchema Schema { get; }
 
     /// <summary>
-    /// Returns a keyword of the same type with another subschema. <see cref="JsonSchema.Rewrite(SchemaRewriter)"/> uses it.
+    /// Returns a keyword of the same type with another subschema. <see cref="JsonSchema.Rewrite(JsonSchemaRewriter)"/> uses it.
     /// </summary>
     /// <remarks>Return this keyword if <paramref name="schema"/> is the current subschema.</remarks>
     ISingleSubschemaKeyword WithSchema(JsonSchema schema);
@@ -84,7 +84,7 @@ public interface ISubschemaArrayKeyword : IJsonSchemaKeyword
     ImmutableArray<JsonSchema> Schemas { get; }
 
     /// <summary>
-    /// Returns a keyword of the same type with other subschemas. <see cref="JsonSchema.Rewrite(SchemaRewriter)"/> uses it.
+    /// Returns a keyword of the same type with other subschemas. <see cref="JsonSchema.Rewrite(JsonSchemaRewriter)"/> uses it.
     /// </summary>
     /// <remarks>Return this keyword if <paramref name="schemas"/> is the current array.</remarks>
     ISubschemaArrayKeyword WithSchemas(ImmutableArray<JsonSchema> schemas);
@@ -98,11 +98,11 @@ public interface ISubschemaMapKeyword : IJsonSchemaKeyword
     /// <summary>
     /// The subschemas by name, in document order.
     /// </summary>
-    SchemaMap Schemas { get; }
+    JsonSchemaMap Schemas { get; }
 
     /// <summary>
-    /// Returns a keyword of the same type with other subschemas. <see cref="JsonSchema.Rewrite(SchemaRewriter)"/> uses it.
+    /// Returns a keyword of the same type with other subschemas. <see cref="JsonSchema.Rewrite(JsonSchemaRewriter)"/> uses it.
     /// </summary>
     /// <remarks>Return this keyword if <paramref name="schemas"/> is the current map.</remarks>
-    ISubschemaMapKeyword WithSchemas(SchemaMap schemas);
+    ISubschemaMapKeyword WithSchemas(JsonSchemaMap schemas);
 }

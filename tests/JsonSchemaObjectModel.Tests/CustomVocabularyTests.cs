@@ -16,7 +16,7 @@ public class CustomVocabularyTests
     private static readonly string dialectJson = File.ReadAllText(Path.Combine(directory, "dialect.json"));
     private static readonly string vocabularyJson = File.ReadAllText(Path.Combine(directory, "vocabulary.json"));
 
-    private static readonly JsonSchemaReaderOptions readerOptions = new(
+    private static readonly JsonSchemaReadOptions readerOptions = new(
         JsonSchemaKeywordRegistry
             .CreateDraft202012()
             //  The placeholder keyword registers by type. The minDate keyword uses the delegate overload.
@@ -26,15 +26,15 @@ public class CustomVocabularyTests
 
     private static JsonSchema OrderSchema() =>
         new JsonSchemaBuilder()
-            .Schema(Dialect)
-            .Type(SchemaValueType.Object)
+            .SchemaDialect(Dialect)
+            .Type(JsonSchemaType.Object)
             .Properties(
-                ("customerName", new JsonSchemaBuilder().Type(SchemaValueType.String).Add(new PlaceholderKeyword("e.g. Alex Smith"))),
+                ("customerName", new JsonSchemaBuilder().Type(JsonSchemaType.String).Add(new PlaceholderKeyword("e.g. Alex Smith"))),
                 (
                     "pickupDate",
                     new JsonSchemaBuilder()
-                        .Type(SchemaValueType.String)
-                        .Format(Formats.Date)
+                        .Type(JsonSchemaType.String)
+                        .Format(JsonSchemaFormats.Date)
                         .Add(new MinDateKeyword(new DateOnly(2026, 12, 1), "Pickup must be on or after the opening day."))
                 )
             )
@@ -63,7 +63,7 @@ public class CustomVocabularyTests
 
         var schema = JsonSchema.Parse(json);
 
-        Assert.IsType<UnknownKeyword>(schema.FindSubschema("/properties/customerName")!.GetKeyword(PlaceholderKeyword.KeywordName));
+        Assert.IsType<UntypedKeyword>(schema.FindSubschema("/properties/customerName")!.GetKeyword(PlaceholderKeyword.KeywordName));
         Assert.Equal(json, schema.ToJsonString());
     }
 

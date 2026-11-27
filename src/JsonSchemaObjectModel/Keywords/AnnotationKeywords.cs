@@ -24,10 +24,17 @@ public sealed class DescriptionKeyword(string value) : StringValueKeyword(value)
 }
 
 /// <summary>The <c>default</c> keyword.</summary>
-public sealed class DefaultKeyword(JsonElement value) : JsonValueKeyword(value)
+public sealed class DefaultKeyword : JsonValueKeyword
 {
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "default";
+
+    /// <summary>Creates the keyword.</summary>
+    public DefaultKeyword(JsonElement value)
+        : base(value) { }
+
+    internal DefaultKeyword(PrimitiveJsonValue value)
+        : base(value) { }
 
     /// <inheritdoc/>
     public override string Name => KeywordName;
@@ -100,11 +107,14 @@ public sealed class ExamplesKeyword : JsonValueArrayKeyword
     internal ExamplesKeyword(ImmutableArray<JsonElement> clonedValues)
         : base(clonedValues) { }
 
+    internal ExamplesKeyword(ImmutableArray<string> strings)
+        : base(strings) { }
+
     /// <inheritdoc/>
     public override string Name => KeywordName;
 }
 
-/// <summary>The <c>format</c> keyword. <see cref="Formats"/> has the names that draft 2020-12 defines.</summary>
+/// <summary>The <c>format</c> keyword. <see cref="JsonSchemaFormats"/> has the names that draft 2020-12 defines.</summary>
 public sealed class FormatKeyword(string value) : StringValueKeyword(value)
 {
     /// <summary>The keyword name.</summary>
@@ -115,25 +125,25 @@ public sealed class FormatKeyword(string value) : StringValueKeyword(value)
     /// </summary>
     internal static readonly FormatKeyword[] Standard =
     [
-        new(Formats.DateTime),
-        new(Formats.Date),
-        new(Formats.Time),
-        new(Formats.Duration),
-        new(Formats.Email),
-        new(Formats.IdnEmail),
-        new(Formats.Hostname),
-        new(Formats.IdnHostname),
-        new(Formats.Ipv4),
-        new(Formats.Ipv6),
-        new(Formats.Uri),
-        new(Formats.UriReference),
-        new(Formats.Iri),
-        new(Formats.IriReference),
-        new(Formats.Uuid),
-        new(Formats.UriTemplate),
-        new(Formats.JsonPointer),
-        new(Formats.RelativeJsonPointer),
-        new(Formats.Regex),
+        new(JsonSchemaFormats.DateTime),
+        new(JsonSchemaFormats.Date),
+        new(JsonSchemaFormats.Time),
+        new(JsonSchemaFormats.Duration),
+        new(JsonSchemaFormats.Email),
+        new(JsonSchemaFormats.IdnEmail),
+        new(JsonSchemaFormats.Hostname),
+        new(JsonSchemaFormats.IdnHostname),
+        new(JsonSchemaFormats.Ipv4),
+        new(JsonSchemaFormats.Ipv6),
+        new(JsonSchemaFormats.Uri),
+        new(JsonSchemaFormats.UriReference),
+        new(JsonSchemaFormats.Iri),
+        new(JsonSchemaFormats.IriReference),
+        new(JsonSchemaFormats.Uuid),
+        new(JsonSchemaFormats.UriTemplate),
+        new(JsonSchemaFormats.JsonPointer),
+        new(JsonSchemaFormats.RelativeJsonPointer),
+        new(JsonSchemaFormats.Regex),
     ];
 
     /// <summary>

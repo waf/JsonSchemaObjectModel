@@ -4,7 +4,7 @@ namespace JsonSchemaObjectModel;
 /// The JSON Schema primitive types that the <c>type</c> keyword names.
 /// </summary>
 [Flags]
-public enum SchemaValueType
+public enum JsonSchemaType
 {
     /// <summary>No type.</summary>
     None = 0,

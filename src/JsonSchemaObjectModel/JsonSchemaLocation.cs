@@ -5,7 +5,7 @@ using System.Text;
 namespace JsonSchemaObjectModel;
 
 /// <summary>
-/// What a <see cref="ISchemaVisitor"/> tells the walk to do next.
+/// What a <see cref="IJsonSchemaVisitor"/> tells the walk to do next.
 /// </summary>
 public enum WalkAction
 {
@@ -25,22 +25,22 @@ public enum WalkAction
 /// <remarks>
 /// Implement it on a struct. The walk then calls it without a delegate or an allocation.
 /// </remarks>
-public interface ISchemaVisitor
+public interface IJsonSchemaVisitor
 {
     /// <summary>
     /// Visits one schema.
     /// </summary>
     /// <param name="schema">The schema.</param>
     /// <param name="location">The location of the schema in the root. It is valid only during this call.</param>
-    WalkAction Visit(JsonSchema schema, in SchemaLocation location);
+    WalkAction Visit(JsonSchema schema, in JsonSchemaLocation location);
 }
 
 /// <summary>
-/// Visits one schema of a walk. See <see cref="JsonSchema.Walk(SchemaVisitor)"/>.
+/// Visits one schema of a walk. See <see cref="JsonSchema.Walk(JsonSchemaVisitor)"/>.
 /// </summary>
 /// <param name="schema">The schema.</param>
 /// <param name="location">The location of the schema in the root. It is valid only during this call.</param>
-public delegate WalkAction SchemaVisitor(JsonSchema schema, in SchemaLocation location);
+public delegate WalkAction JsonSchemaVisitor(JsonSchema schema, in JsonSchemaLocation location);
 
 /// <summary>
 /// Rewrites the schemas of a rewrite. See <see cref="JsonSchema.Rewrite{TRewriter}(ref TRewriter)"/>.
@@ -48,7 +48,7 @@ public delegate WalkAction SchemaVisitor(JsonSchema schema, in SchemaLocation lo
 /// <remarks>
 /// Implement it on a struct. The rewrite then calls it without a delegate or an allocation.
 /// </remarks>
-public interface ISchemaRewriter
+public interface IJsonSchemaRewriter
 {
     /// <summary>
     /// Rewrites one schema. Its subschemas are already rewritten.
@@ -56,16 +56,16 @@ public interface ISchemaRewriter
     /// <param name="schema">The schema, with rewritten subschemas.</param>
     /// <param name="location">The location of the schema in the original root. It is valid only during this call.</param>
     /// <returns>The new schema, or <paramref name="schema"/> to keep it.</returns>
-    JsonSchema Rewrite(JsonSchema schema, in SchemaLocation location);
+    JsonSchema Rewrite(JsonSchema schema, in JsonSchemaLocation location);
 }
 
 /// <summary>
-/// Rewrites one schema of a rewrite. See <see cref="JsonSchema.Rewrite(SchemaRewriter)"/>.
+/// Rewrites one schema of a rewrite. See <see cref="JsonSchema.Rewrite(JsonSchemaRewriter)"/>.
 /// </summary>
 /// <param name="schema">The schema, with rewritten subschemas.</param>
 /// <param name="location">The location of the schema in the original root. It is valid only during this call.</param>
 /// <returns>The new schema, or <paramref name="schema"/> to keep it.</returns>
-public delegate JsonSchema SchemaRewriter(JsonSchema schema, in SchemaLocation location);
+public delegate JsonSchema JsonSchemaRewriter(JsonSchema schema, in JsonSchemaLocation location);
 
 /// <summary>
 /// One step from a schema into a subschema: the keyword, and the property name or index in its value.
@@ -73,7 +73,7 @@ public delegate JsonSchema SchemaRewriter(JsonSchema schema, in SchemaLocation l
 /// <param name="KeywordName">The keyword that holds the subschema, for example <c>properties</c>.</param>
 /// <param name="PropertyName">The name in a map keyword such as <c>properties</c>, or <see langword="null"/>.</param>
 /// <param name="Index">The index in an array keyword such as <c>allOf</c>, or -1.</param>
-public readonly record struct SchemaLocationSegment(string KeywordName, string? PropertyName, int Index);
+public readonly record struct JsonSchemaLocationSegment(string KeywordName, string? PropertyName, int Index);
 
 /// <summary>
 /// The location of a subschema in the root schema of a walk or a rewrite.
@@ -82,14 +82,14 @@ public readonly record struct SchemaLocationSegment(string KeywordName, string? 
 /// - The location is valid only during the call that gets it. Copy what you need, for example with <see cref="ToPointer"/>.
 /// - It costs nothing until you read it. <see cref="ToPointer"/> allocates the pointer string.
 /// </remarks>
-public readonly ref struct SchemaLocation
+public readonly ref struct JsonSchemaLocation
 {
-    internal SchemaLocation(ReadOnlySpan<SchemaLocationSegment> segments) => Segments = segments;
+    internal JsonSchemaLocation(ReadOnlySpan<JsonSchemaLocationSegment> segments) => Segments = segments;
 
     /// <summary>
     /// The steps from the root to the schema. The root has no steps.
     /// </summary>
-    public ReadOnlySpan<SchemaLocationSegment> Segments { get; }
+    public ReadOnlySpan<JsonSchemaLocationSegment> Segments { get; }
 
     /// <summary>
     /// The number of keywords between the root and the schema. The root has the depth 0.
@@ -169,20 +169,20 @@ public readonly ref struct SchemaLocation
 /// </summary>
 internal struct LocationStack : IDisposable
 {
-    private SchemaLocationSegment[] segments;
+    private JsonSchemaLocationSegment[] segments;
     private int count;
 
-    public static LocationStack Create() => new() { segments = ArrayPool<SchemaLocationSegment>.Shared.Rent(16) };
+    public static LocationStack Create() => new() { segments = ArrayPool<JsonSchemaLocationSegment>.Shared.Rent(16) };
 
-    public readonly SchemaLocation Location => new(segments.AsSpan(0, count));
+    public readonly JsonSchemaLocation Location => new(segments.AsSpan(0, count));
 
     public void Push(string keywordName, string? propertyName, int index)
     {
         if (count == segments.Length)
         {
-            var larger = ArrayPool<SchemaLocationSegment>.Shared.Rent(segments.Length * 2);
+            var larger = ArrayPool<JsonSchemaLocationSegment>.Shared.Rent(segments.Length * 2);
             segments.AsSpan(0, count).CopyTo(larger);
-            ArrayPool<SchemaLocationSegment>.Shared.Return(segments, clearArray: true);
+            ArrayPool<JsonSchemaLocationSegment>.Shared.Return(segments, clearArray: true);
             segments = larger;
         }
 
@@ -196,7 +196,7 @@ internal struct LocationStack : IDisposable
         if (segments is not null)
         {
             //  Clear the array, so that the pool does not keep references to keyword and property names.
-            ArrayPool<SchemaLocationSegment>.Shared.Return(segments, clearArray: true);
+            ArrayPool<JsonSchemaLocationSegment>.Shared.Return(segments, clearArray: true);
             segments = null!;
         }
     }

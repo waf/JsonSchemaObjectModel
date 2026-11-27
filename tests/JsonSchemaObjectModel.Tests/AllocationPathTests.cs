@@ -41,14 +41,14 @@ public class AllocationPathTests
     {
         Assert.Same(
             JsonSchema.Parse("""{"type":"string"}""").GetKeyword<TypeKeyword>(),
-            new JsonSchemaBuilder().Type(SchemaValueType.String).Build().GetKeyword<TypeKeyword>()
+            new JsonSchemaBuilder().Type(JsonSchemaType.String).Build().GetKeyword<TypeKeyword>()
         );
     }
 
     [Fact]
     public void ToJsonString_works_when_a_keyword_calls_it_while_writing()
     {
-        var inner = new JsonSchemaBuilder().Type(SchemaValueType.String).Build();
+        var inner = new JsonSchemaBuilder().Type(JsonSchemaType.String).Build();
         JsonSchema schema = new JsonSchemaBuilder().Add(new NestedWriterKeyword(inner)).MinLength(1);
 
         AssertJsonEqual("""{"x-nested":"{\"type\":\"string\"}","minLength":1}""", schema.ToJsonString());
@@ -88,7 +88,7 @@ public class AllocationPathTests
         var schema = JsonSchema.Parse(json);
 
         Assert.IsType<TypeKeyword>(schema.Keywords[0]);
-        Assert.Equal(longName, Assert.IsType<UnknownKeyword>(schema.Keywords[1]).Name);
+        Assert.Equal(longName, Assert.IsType<UntypedKeyword>(schema.Keywords[1]).Name);
     }
 
     [Fact]
@@ -134,19 +134,19 @@ public class AllocationPathTests
         public void WriteValue(Utf8JsonWriter writer) => writer.WriteStringValue(inner.ToJsonString());
     }
 
-    private struct CountingVisitor : ISchemaVisitor
+    private struct CountingVisitor : IJsonSchemaVisitor
     {
         public int Count { get; private set; }
 
-        public WalkAction Visit(JsonSchema schema, in SchemaLocation location)
+        public WalkAction Visit(JsonSchema schema, in JsonSchemaLocation location)
         {
             Count++;
             return WalkAction.Continue;
         }
     }
 
-    private readonly struct IdentityRewriter : ISchemaRewriter
+    private readonly struct IdentityRewriter : IJsonSchemaRewriter
     {
-        public JsonSchema Rewrite(JsonSchema schema, in SchemaLocation location) => schema;
+        public JsonSchema Rewrite(JsonSchema schema, in JsonSchemaLocation location) => schema;
     }
 }

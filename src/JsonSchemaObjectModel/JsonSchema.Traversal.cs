@@ -14,7 +14,7 @@ public sealed partial class JsonSchema
     /// - With a struct visitor, the walk allocates nothing. The visitor is passed by reference, so it can keep a result.
     /// </remarks>
     public void Walk<TVisitor>(ref TVisitor visitor)
-        where TVisitor : struct, ISchemaVisitor
+        where TVisitor : struct, IJsonSchemaVisitor
     {
         var path = LocationStack.Create();
         try
@@ -31,7 +31,7 @@ public sealed partial class JsonSchema
     /// Visits this schema and its subschemas, parent before children, in document order.
     /// </summary>
     /// <remarks>See <see cref="Walk{TVisitor}(ref TVisitor)"/>. Use that overload with a struct to avoid a delegate.</remarks>
-    public void Walk(SchemaVisitor visitor)
+    public void Walk(JsonSchemaVisitor visitor)
     {
         ArgumentNullException.ThrowIfNull(visitor);
         var adapter = new DelegateVisitor(visitor);
@@ -52,7 +52,7 @@ public sealed partial class JsonSchema
     /// </remarks>
     /// <exception cref="InvalidOperationException">The rewriter returned <see langword="null"/>.</exception>
     public JsonSchema Rewrite<TRewriter>(ref TRewriter rewriter)
-        where TRewriter : struct, ISchemaRewriter
+        where TRewriter : struct, IJsonSchemaRewriter
     {
         var path = LocationStack.Create();
         try
@@ -70,7 +70,7 @@ public sealed partial class JsonSchema
     /// </summary>
     /// <remarks>See <see cref="Rewrite{TRewriter}(ref TRewriter)"/>. Use that overload with a struct to avoid a delegate.</remarks>
     /// <exception cref="InvalidOperationException">The rewriter returned <see langword="null"/>.</exception>
-    public JsonSchema Rewrite(SchemaRewriter rewrite)
+    public JsonSchema Rewrite(JsonSchemaRewriter rewrite)
     {
         ArgumentNullException.ThrowIfNull(rewrite);
         var adapter = new DelegateRewriter(rewrite);
@@ -79,7 +79,7 @@ public sealed partial class JsonSchema
 
     //  Returns false if the visitor stopped the walk.
     private static bool Walk<TVisitor>(JsonSchema schema, ref TVisitor visitor, ref LocationStack path)
-        where TVisitor : struct, ISchemaVisitor
+        where TVisitor : struct, IJsonSchemaVisitor
     {
         switch (visitor.Visit(schema, path.Location))
         {
@@ -137,7 +137,7 @@ public sealed partial class JsonSchema
     }
 
     private static JsonSchema Rewrite<TRewriter>(JsonSchema schema, ref TRewriter rewriter, ref LocationStack path)
-        where TRewriter : struct, ISchemaRewriter
+        where TRewriter : struct, IJsonSchemaRewriter
     {
         //  Copy the keyword array only when the first keyword changes.
         IJsonSchemaKeyword[]? changed = null;
@@ -159,7 +159,7 @@ public sealed partial class JsonSchema
     }
 
     private static IJsonSchemaKeyword RewriteKeyword<TRewriter>(IJsonSchemaKeyword keyword, ref TRewriter rewriter, ref LocationStack path)
-        where TRewriter : struct, ISchemaRewriter
+        where TRewriter : struct, IJsonSchemaRewriter
     {
         switch (keyword)
         {
@@ -206,20 +206,20 @@ public sealed partial class JsonSchema
                 }
 
                 //  The names did not change, so they are still unique. The new map adopts the array without a copy.
-                SchemaMap.TryCreate(changedEntries, out var changedMap, out _);
+                JsonSchemaMap.TryCreate(changedEntries, out var changedMap, out _);
                 return map.WithSchemas(changedMap!);
             default:
                 return keyword;
         }
     }
 
-    private readonly struct DelegateVisitor(SchemaVisitor visitor) : ISchemaVisitor
+    private readonly struct DelegateVisitor(JsonSchemaVisitor visitor) : IJsonSchemaVisitor
     {
-        public WalkAction Visit(JsonSchema schema, in SchemaLocation location) => visitor(schema, location);
+        public WalkAction Visit(JsonSchema schema, in JsonSchemaLocation location) => visitor(schema, location);
     }
 
-    private readonly struct DelegateRewriter(SchemaRewriter rewrite) : ISchemaRewriter
+    private readonly struct DelegateRewriter(JsonSchemaRewriter rewrite) : IJsonSchemaRewriter
     {
-        public JsonSchema Rewrite(JsonSchema schema, in SchemaLocation location) => rewrite(schema, location);
+        public JsonSchema Rewrite(JsonSchema schema, in JsonSchemaLocation location) => rewrite(schema, location);
     }
 }

@@ -129,7 +129,7 @@ public readonly struct JsonNumber : IEquatable<JsonNumber>
     /// if that document is disposable.
     /// </summary>
     /// <exception cref="ArgumentException"><paramref name="element"/> is not a JSON number.</exception>
-    public static JsonNumber FromElement(JsonElement element) =>
+    public static JsonNumber FromJsonElement(JsonElement element) =>
         element.ValueKind == JsonValueKind.Number
             ? new(element.Clone())
             : throw new ArgumentException("The element must be a JSON number.", nameof(element));

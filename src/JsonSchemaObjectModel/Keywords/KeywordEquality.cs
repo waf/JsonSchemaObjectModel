@@ -6,7 +6,7 @@ namespace JsonSchemaObjectModel.Keywords;
 /// <remarks>
 /// - <see cref="ValueEquals"/> gets a keyword of the same type.
 /// - <see cref="GetValueHashCode"/> must give the same result as <see cref="JsonValueEquality.Element"/>
-///   for the JSON that the keyword writes. A typed keyword and an <see cref="UnknownKeyword"/> with the same JSON
+///   for the JSON that the keyword writes. A typed keyword and an <see cref="UntypedKeyword"/> with the same JSON
 ///   are then equal, with the same hash code.
 /// </remarks>
 internal interface IKeywordValueEquality
@@ -32,7 +32,7 @@ internal static class KeywordEquality
         }
 
         //  Keywords of the same type compare their fields. Keywords of different types, for example a typed keyword
-        //  and an UnknownKeyword from a parse with another registry, compare their JSON.
+        //  and an UntypedKeyword from a parse with another registry, compare their JSON.
         if (left.GetType() == right.GetType() && left is IKeywordValueEquality typed)
         {
             return typed.ValueEquals(right);

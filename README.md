@@ -27,16 +27,20 @@ on top of this package. If you need something more full-featured, try the excell
 using JsonSchemaObjectModel;
 
 JsonSchema restaurantSchema = new JsonSchemaBuilder()
-    .Schema(SchemaKeyword.Draft202012)
-    .Type(SchemaValueType.Object)
+    .SchemaDialect(SchemaKeyword.Draft202012)
+    .Type(JsonSchemaType.Object)
     .Properties(
-        ("ownerEmail", new JsonSchemaBuilder().Type(SchemaValueType.String).Format(Formats.Email)),
-        ("menus", new JsonSchemaBuilder().Type(SchemaValueType.Array).MinItems(1))
+        ("ownerEmail", JsonSchemaBuilder.String().Format(JsonSchemaFormats.Email)),
+        ("menus", JsonSchemaBuilder.Array().MinItems(1))
     )
     .Required("ownerEmail");
 
 string json = restaurantSchema.ToJsonString();
 ```
+
+`JsonSchemaBuilder.String()` is a short form of `new JsonSchemaBuilder().Type(JsonSchemaType.String)`. There is one for
+each JSON type: `String`, `Number`, `Integer`, `Boolean`, `Object`, `Array` and `Null`. The builder writes keywords in
+the order you add them, so the root above starts with `new JsonSchemaBuilder()` to keep `$schema` first.
 
 ## Parse and navigate
 
@@ -68,7 +72,7 @@ each schema after its subschemas, so one pass can change a whole tree. For examp
 schema for a strict structured-output API:
 
 ```csharp
-var strict = restaurantSchema.Rewrite((JsonSchema schema, in SchemaLocation location) =>
+var strict = restaurantSchema.Rewrite((JsonSchema schema, in JsonSchemaLocation location) =>
 {
     if (schema.BooleanValue is not null)
     {
@@ -85,7 +89,7 @@ var strict = restaurantSchema.Rewrite((JsonSchema schema, in SchemaLocation loca
 `Walk` visits each schema, parent first. The visitor returns `Continue`, `SkipChildren` or `Stop`.
 
 ```csharp
-restaurantSchema.Walk((JsonSchema schema, in SchemaLocation location) =>
+restaurantSchema.Walk((JsonSchema schema, in JsonSchemaLocation location) =>
 {
     Console.WriteLine($"{location.ToPointer()}: {schema.Type}");   // for example "/properties/menus: Array"
     return WalkAction.Continue;
@@ -93,7 +97,7 @@ restaurantSchema.Walk((JsonSchema schema, in SchemaLocation location) =>
 ```
 
 - `With(keyword)` and `Without(name)` edit one schema. They return the same instance if nothing changes.
-- Both methods have an overload for a struct that implements `ISchemaVisitor` or `ISchemaRewriter`. With a struct,
+- Both methods have an overload for a struct that implements `IJsonSchemaVisitor` or `IJsonSchemaRewriter`. With a struct,
   a walk or a rewrite that changes nothing allocates nothing.
 - The walk and the rewrite go into subschema keywords only. They do not resolve `$ref`.
 
@@ -114,7 +118,7 @@ sealed class PlaceholderKeyword(string placeholder) : IJsonSchemaKeyword<Placeho
     public void WriteValue(Utf8JsonWriter writer) => writer.WriteStringValue(Placeholder);
 }
 
-var readerOptions = new JsonSchemaReaderOptions(
+var readerOptions = new JsonSchemaReadOptions(
     JsonSchemaKeywordRegistry.CreateDraft202012().Add<PlaceholderKeyword>());
 
 var schema = JsonSchema.Parse(json, readerOptions);
@@ -124,7 +128,8 @@ var serializerOptions = new JsonSerializerOptions { Converters = { new JsonSchem
 - The compiler checks that the type has a name and a reader. The reader checks that `Name` matches `KeywordName`.
 - For a reader with run-time configuration, or one type for many names (for example every `x-*` keyword), implement
   `IJsonSchemaKeyword` and register a delegate: `registry.Add("x-ui", (value, context) => ...)`.
-- Add a keyword to a schema with `JsonSchemaBuilder.Add(keyword)`.
+- Add a keyword to a schema with `JsonSchemaBuilder.Add(keyword)`. `Add` throws if the builder already has a keyword
+  with that name. Use `JsonSchemaBuilder.Set(keyword)` to replace it.
 - A keyword with subschemas implements `ISingleSubschemaKeyword`, `ISubschemaArrayKeyword` or `ISubschemaMapKeyword`,
   or derives from `SingleSubschemaKeyword` and the other base classes. Then `FindSubschema`, `Walk` and `Rewrite` go into it.
 - The read context gives typed helpers (`ReadString`, `ReadSchema`, `ReadSchemaArray`, ...). Its `Error` method

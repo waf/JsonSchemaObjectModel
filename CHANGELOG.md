@@ -1,3 +1,7 @@
+# Release 0.3.0
+
+Breaking: public names are now clearer and more consistent. Types that are about schemas start with `JsonSchema`.
+
 # Release 0.2.0
 
 - Fix: `JsonSchema.Parse` now throws a `JsonException` for a duplicate name in `$vocabulary` or `dependentRequired`. Before, it threw an `ArgumentException` with no location.

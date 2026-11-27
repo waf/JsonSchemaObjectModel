@@ -12,10 +12,10 @@ namespace JsonSchemaObjectModel;
 /// An immutable JSON Schema: either a boolean schema or a schema object with an ordered list of keywords.
 /// </summary>
 /// <remarks>
-/// - Parse a schema with <see cref="Parse(string, JsonSchemaReaderOptions?)"/> or <see cref="FromJsonElement"/>.
+/// - Parse a schema with <see cref="Parse(string, JsonSchemaReadOptions?)"/> or <see cref="FromJsonElement"/>.
 /// - Build a schema with <see cref="JsonSchemaBuilder"/>.
 /// - Write a schema with <see cref="WriteTo"/> or <see cref="ToJsonString"/>.
-/// - The type has a System.Text.Json converter that reads with <see cref="JsonSchemaReaderOptions.Default"/>.
+/// - The type has a System.Text.Json converter that reads with <see cref="JsonSchemaReadOptions.Default"/>.
 ///   To read custom keywords, add a <see cref="JsonSchemaConverter"/> with your own options.
 /// </remarks>
 [JsonConverter(typeof(JsonSchemaConverter))]
@@ -73,29 +73,29 @@ public sealed partial class JsonSchema : IEquatable<JsonSchema>
     /// Parses a schema from JSON text.
     /// </summary>
     /// <exception cref="JsonException">The text is not valid JSON, or it is not a valid schema.</exception>
-    public static JsonSchema Parse(string json, JsonSchemaReaderOptions? options = null)
+    public static JsonSchema Parse(string json, JsonSchemaReadOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(json);
 
         //  JsonElement.Parse gives an element that owns its memory. Keywords that keep JSON values then
         //  reuse that memory, instead of copying each value into a document of its own.
-        return JsonSchemaReader.ReadRoot(JsonElement.Parse(json), options ?? JsonSchemaReaderOptions.Default);
+        return JsonSchemaReader.ReadRoot(JsonElement.Parse(json), options ?? JsonSchemaReadOptions.Default);
     }
 
     /// <summary>
     /// Parses a schema from UTF-8 JSON text.
     /// </summary>
     /// <exception cref="JsonException">The text is not valid JSON, or it is not a valid schema.</exception>
-    public static JsonSchema Parse(ReadOnlySpan<byte> utf8Json, JsonSchemaReaderOptions? options = null) =>
-        JsonSchemaReader.ReadRoot(JsonElement.Parse(utf8Json), options ?? JsonSchemaReaderOptions.Default);
+    public static JsonSchema Parse(ReadOnlySpan<byte> utf8Json, JsonSchemaReadOptions? options = null) =>
+        JsonSchemaReader.ReadRoot(JsonElement.Parse(utf8Json), options ?? JsonSchemaReadOptions.Default);
 
     /// <summary>
     /// Reads a schema from a JSON element.
     /// The schema does not keep a reference to the element's document if that document is disposable.
     /// </summary>
     /// <exception cref="JsonException">The element is not a valid schema.</exception>
-    public static JsonSchema FromJsonElement(JsonElement element, JsonSchemaReaderOptions? options = null) =>
-        JsonSchemaReader.ReadRoot(element, options ?? JsonSchemaReaderOptions.Default);
+    public static JsonSchema FromJsonElement(JsonElement element, JsonSchemaReadOptions? options = null) =>
+        JsonSchemaReader.ReadRoot(element, options ?? JsonSchemaReadOptions.Default);
 
     /// <summary>
     /// Returns the first keyword of type <typeparamref name="T"/>, or <see langword="null"/>.
@@ -336,7 +336,7 @@ public sealed partial class JsonSchema : IEquatable<JsonSchema>
     ///   - Strings are compared after unescaping.
     /// - The comparison is structural. It is not about validation. <c>true</c> and <c>{}</c> accept the same
     ///   instances, but they are not equal, and <c>"type": "string"</c> is not equal to <c>"type": ["string"]</c>.
-    /// - A typed keyword equals an <see cref="Keywords.UnknownKeyword"/> with the same name and the same JSON.
+    /// - A typed keyword equals an <see cref="Keywords.UntypedKeyword"/> with the same name and the same JSON.
     ///   So two parses of the same JSON are equal also if they use different registries.
     /// - A custom keyword is compared by the JSON that it writes. This is correct, but slower than a typed comparison.
     /// </remarks>

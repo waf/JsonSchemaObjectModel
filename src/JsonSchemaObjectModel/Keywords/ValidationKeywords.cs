@@ -16,12 +16,12 @@ public sealed class TypeKeyword : IJsonSchemaKeyword, IKeywordValueEquality
     bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other)
     {
         var typed = (TypeKeyword)other;
-        return IsArray == typed.IsArray && Types.AsSpan().SequenceEqual(typed.Types.AsSpan());
+        return IsArrayForm == typed.IsArrayForm && Types.AsSpan().SequenceEqual(typed.Types.AsSpan());
     }
 
     int IKeywordValueEquality.GetValueHashCode()
     {
-        if (!IsArray)
+        if (!IsArrayForm)
         {
             return JsonValueEquality.String(GetTypeName(Types[0]));
         }
@@ -38,37 +38,37 @@ public sealed class TypeKeyword : IJsonSchemaKeyword, IKeywordValueEquality
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "type";
 
-    private static readonly SchemaValueType[] allTypes =
+    private static readonly JsonSchemaType[] allTypes =
     [
-        SchemaValueType.Object,
-        SchemaValueType.Array,
-        SchemaValueType.Boolean,
-        SchemaValueType.String,
-        SchemaValueType.Number,
-        SchemaValueType.Integer,
-        SchemaValueType.Null,
+        JsonSchemaType.Object,
+        JsonSchemaType.Array,
+        JsonSchemaType.Boolean,
+        JsonSchemaType.String,
+        JsonSchemaType.Number,
+        JsonSchemaType.Integer,
+        JsonSchemaType.Null,
     ];
 
     //  Static fields initialize in order. This one uses allTypes, so it must come after it.
     private static readonly TypeKeyword[] singles =
     [
-        new(SchemaValueType.Object),
-        new(SchemaValueType.Array),
-        new(SchemaValueType.Boolean),
-        new(SchemaValueType.String),
-        new(SchemaValueType.Number),
-        new(SchemaValueType.Integer),
-        new(SchemaValueType.Null),
+        new(JsonSchemaType.Object),
+        new(JsonSchemaType.Array),
+        new(JsonSchemaType.Boolean),
+        new(JsonSchemaType.String),
+        new(JsonSchemaType.Number),
+        new(JsonSchemaType.Integer),
+        new(JsonSchemaType.Null),
     ];
 
     /// <summary>
     /// Creates the keyword from one or more flags.
     /// One flag writes a string. More than one flag writes an array.
     /// </summary>
-    /// <exception cref="ArgumentException"><paramref name="type"/> is <see cref="SchemaValueType.None"/> or has unknown flags.</exception>
-    public TypeKeyword(SchemaValueType type)
+    /// <exception cref="ArgumentException"><paramref name="type"/> is <see cref="JsonSchemaType.None"/> or has unknown flags.</exception>
+    public TypeKeyword(JsonSchemaType type)
     {
-        var builder = ImmutableArray.CreateBuilder<SchemaValueType>();
+        var builder = ImmutableArray.CreateBuilder<JsonSchemaType>();
         foreach (var candidate in allTypes)
         {
             if ((type & candidate) != 0)
@@ -83,8 +83,8 @@ public sealed class TypeKeyword : IJsonSchemaKeyword, IKeywordValueEquality
         }
 
         Types = builder.ToImmutable();
-        Type = type;
-        IsArray = Types.Length > 1;
+        Flags = type;
+        IsArrayForm = Types.Length > 1;
     }
 
     /// <summary>
@@ -93,10 +93,13 @@ public sealed class TypeKeyword : IJsonSchemaKeyword, IKeywordValueEquality
     /// <exception cref="ArgumentException">
     /// <paramref name="types"/> is empty, or a value is not a single known flag, or a value occurs more than once.
     /// </exception>
-    public TypeKeyword(IEnumerable<SchemaValueType> types)
+    public TypeKeyword(IEnumerable<JsonSchemaType> types)
+        : this(ImmutableArray.CreateRange(types ?? throw new ArgumentNullException(nameof(types)))) { }
+
+    //  Adopts the array without a copy. The reader and the builder make an exact-size array.
+    internal TypeKeyword(ImmutableArray<JsonSchemaType> types)
     {
-        ArgumentNullException.ThrowIfNull(types);
-        Types = [.. types];
+        Types = types;
         if (Types.IsEmpty)
         {
             throw new ArgumentException("The list must contain at least one type.", nameof(types));
@@ -109,15 +112,15 @@ public sealed class TypeKeyword : IJsonSchemaKeyword, IKeywordValueEquality
                 throw new ArgumentException($"'{type}' is not a single known type.", nameof(types));
             }
 
-            if ((Type & type) != 0)
+            if ((Flags & type) != 0)
             {
                 throw new ArgumentException($"The type '{type}' occurs more than once.", nameof(types));
             }
 
-            Type |= type;
+            Flags |= type;
         }
 
-        IsArray = true;
+        IsArrayForm = true;
     }
 
     /// <inheritdoc/>
@@ -126,58 +129,59 @@ public sealed class TypeKeyword : IJsonSchemaKeyword, IKeywordValueEquality
     /// <summary>
     /// Returns a shared keyword for one or more flags. The keyword is immutable, so it is safe to share.
     /// </summary>
-    public static TypeKeyword For(SchemaValueType type)
+    public static TypeKeyword For(JsonSchemaType type)
     {
         var index = Array.IndexOf(allTypes, type);
         return index >= 0 ? singles[index] : new TypeKeyword(type);
     }
 
     /// <summary>
-    /// All the types, as flags.
+    /// All the types, as flags. The flags do not keep the order. Use <see cref="Types"/> for the order.
     /// </summary>
-    public SchemaValueType Type { get; }
+    public JsonSchemaType Flags { get; }
 
     /// <summary>
     /// The types, in document order.
     /// </summary>
-    public ImmutableArray<SchemaValueType> Types { get; }
+    public ImmutableArray<JsonSchemaType> Types { get; }
 
     /// <summary>
-    /// <see langword="true"/> if the JSON value is an array.
+    /// <see langword="true"/> if the JSON value is an array of strings, for example <c>["string"]</c>.
+    /// <see langword="false"/> if it is one string, for example <c>"string"</c>.
     /// </summary>
-    public bool IsArray { get; }
+    public bool IsArrayForm { get; }
 
-    private static SchemaValueType AllFlags =>
-        SchemaValueType.Object
-        | SchemaValueType.Array
-        | SchemaValueType.Boolean
-        | SchemaValueType.String
-        | SchemaValueType.Number
-        | SchemaValueType.Integer
-        | SchemaValueType.Null;
+    private static JsonSchemaType AllFlags =>
+        JsonSchemaType.Object
+        | JsonSchemaType.Array
+        | JsonSchemaType.Boolean
+        | JsonSchemaType.String
+        | JsonSchemaType.Number
+        | JsonSchemaType.Integer
+        | JsonSchemaType.Null;
 
     /// <summary>
     /// Returns the JSON name of a single type, for example <c>"string"</c>.
     /// </summary>
-    public static string GetTypeName(SchemaValueType type) =>
+    public static string GetTypeName(JsonSchemaType type) =>
         type switch
         {
-            SchemaValueType.Object => "object",
-            SchemaValueType.Array => "array",
-            SchemaValueType.Boolean => "boolean",
-            SchemaValueType.String => "string",
-            SchemaValueType.Number => "number",
-            SchemaValueType.Integer => "integer",
-            SchemaValueType.Null => "null",
+            JsonSchemaType.Object => "object",
+            JsonSchemaType.Array => "array",
+            JsonSchemaType.Boolean => "boolean",
+            JsonSchemaType.String => "string",
+            JsonSchemaType.Number => "number",
+            JsonSchemaType.Integer => "integer",
+            JsonSchemaType.Null => "null",
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, "The value must be a single known type."),
         };
 
     /// <summary>
     /// Gets the type that a JSON string names, without allocating a string.
     /// </summary>
-    public static bool TryParseTypeName(JsonElement name, out SchemaValueType type)
+    public static bool TryParseTypeName(JsonElement name, out JsonSchemaType type)
     {
-        type = SchemaValueType.None;
+        type = JsonSchemaType.None;
         if (name.ValueKind != JsonValueKind.String)
         {
             return false;
@@ -198,26 +202,26 @@ public sealed class TypeKeyword : IJsonSchemaKeyword, IKeywordValueEquality
     /// <summary>
     /// Gets the type that has a JSON name, for example <c>"string"</c>.
     /// </summary>
-    public static bool TryParseTypeName(string? name, out SchemaValueType type)
+    public static bool TryParseTypeName(string? name, out JsonSchemaType type)
     {
         type = name switch
         {
-            "object" => SchemaValueType.Object,
-            "array" => SchemaValueType.Array,
-            "boolean" => SchemaValueType.Boolean,
-            "string" => SchemaValueType.String,
-            "number" => SchemaValueType.Number,
-            "integer" => SchemaValueType.Integer,
-            "null" => SchemaValueType.Null,
-            _ => SchemaValueType.None,
+            "object" => JsonSchemaType.Object,
+            "array" => JsonSchemaType.Array,
+            "boolean" => JsonSchemaType.Boolean,
+            "string" => JsonSchemaType.String,
+            "number" => JsonSchemaType.Number,
+            "integer" => JsonSchemaType.Integer,
+            "null" => JsonSchemaType.Null,
+            _ => JsonSchemaType.None,
         };
-        return type != SchemaValueType.None;
+        return type != JsonSchemaType.None;
     }
 
     /// <inheritdoc/>
     public void WriteValue(Utf8JsonWriter writer)
     {
-        if (!IsArray)
+        if (!IsArrayForm)
         {
             writer.WriteStringValue(GetTypeName(Types[0]));
             return;
@@ -501,10 +505,10 @@ public sealed class MinPropertiesKeyword(ulong value) : NonNegativeIntegerKeywor
 public sealed class RequiredKeyword : IJsonSchemaKeyword, IKeywordValueEquality
 {
     bool IKeywordValueEquality.ValueEquals(IJsonSchemaKeyword other) =>
-        Properties.AsSpan().SequenceEqual(((RequiredKeyword)other).Properties.AsSpan());
+        Names.AsSpan().SequenceEqual(((RequiredKeyword)other).Names.AsSpan());
 
     int IKeywordValueEquality.GetValueHashCode() =>
-        JsonValueEquality.StringArray(Properties);
+        JsonValueEquality.StringArray(Names);
 
     /// <summary>The keyword name.</summary>
     public const string KeywordName = "required";
@@ -513,22 +517,22 @@ public sealed class RequiredKeyword : IJsonSchemaKeyword, IKeywordValueEquality
     /// Creates the keyword.
     /// </summary>
     /// <exception cref="ArgumentException">A property name occurs more than once.</exception>
-    public RequiredKeyword(IEnumerable<string> properties)
+    public RequiredKeyword(IEnumerable<string> names)
     {
-        ArgumentNullException.ThrowIfNull(properties);
-        Properties = UniqueStrings.Create(properties, nameof(properties));
+        ArgumentNullException.ThrowIfNull(names);
+        Names = UniqueStrings.Create(names, nameof(names));
     }
 
     /// <inheritdoc/>
     public string Name => KeywordName;
 
     /// <summary>
-    /// The names of the required properties, in document order.
+    /// The names of the required names, in document order.
     /// </summary>
-    public ImmutableArray<string> Properties { get; }
+    public ImmutableArray<string> Names { get; }
 
     /// <inheritdoc/>
-    public void WriteValue(Utf8JsonWriter writer) => UniqueStrings.Write(writer, Properties);
+    public void WriteValue(Utf8JsonWriter writer) => UniqueStrings.Write(writer, Names);
 }
 
 /// <summary>The <c>dependentRequired</c> keyword.</summary>

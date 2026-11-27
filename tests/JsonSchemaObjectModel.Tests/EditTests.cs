@@ -35,7 +35,7 @@ public class EditTests
                         break;
                     case ISubschemaMapKeyword map:
                         Assert.Same(map, map.WithSchemas(map.Schemas));
-                        var changedMap = map.WithSchemas(SchemaMap.Create(("dessert", replacement)));
+                        var changedMap = map.WithSchemas(JsonSchemaMap.Create(("dessert", replacement)));
                         Assert.Equal(map.GetType(), changedMap.GetType());
                         Assert.Same(replacement, changedMap.Schemas["dessert"]);
                         break;

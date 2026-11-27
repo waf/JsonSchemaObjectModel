@@ -42,17 +42,17 @@ public static class OrderSchemas
                         ("menuItemId", new Ours.JsonSchemaBuilder().Const(MenuItemId(line))),
                         ("itemCode", new Ours.JsonSchemaBuilder().Const($"M{line}")),
                         ("course", new Ours.JsonSchemaBuilder().Const("MAIN")),
-                        ("name", new Ours.JsonSchemaBuilder().Type(Ours.SchemaValueType.String)),
-                        ("notes", new Ours.JsonSchemaBuilder().Type(Ours.SchemaValueType.String)),
-                        ("size", new Ours.JsonSchemaBuilder().Type(Ours.SchemaValueType.String).Pattern("^[SML]$")),
-                        ("pickupDate", new Ours.JsonSchemaBuilder().Type(Ours.SchemaValueType.String).Format(Ours.Formats.Date)),
-                        ("allergenCode", new Ours.JsonSchemaBuilder().Type(Ours.SchemaValueType.String)),
-                        ("preparedBy", new Ours.JsonSchemaBuilder().Type(Ours.SchemaValueType.String).Format(Ours.Formats.Date)),
-                        ("receiptEmail", new Ours.JsonSchemaBuilder().Type(Ours.SchemaValueType.String).Format(Ours.Formats.Email)),
+                        ("name", new Ours.JsonSchemaBuilder().Type(Ours.JsonSchemaType.String)),
+                        ("notes", new Ours.JsonSchemaBuilder().Type(Ours.JsonSchemaType.String)),
+                        ("size", new Ours.JsonSchemaBuilder().Type(Ours.JsonSchemaType.String).Pattern("^[SML]$")),
+                        ("pickupDate", new Ours.JsonSchemaBuilder().Type(Ours.JsonSchemaType.String).Format(Ours.JsonSchemaFormats.Date)),
+                        ("allergenCode", new Ours.JsonSchemaBuilder().Type(Ours.JsonSchemaType.String)),
+                        ("preparedBy", new Ours.JsonSchemaBuilder().Type(Ours.JsonSchemaType.String).Format(Ours.JsonSchemaFormats.Date)),
+                        ("receiptEmail", new Ours.JsonSchemaBuilder().Type(Ours.JsonSchemaType.String).Format(Ours.JsonSchemaFormats.Email)),
                         (
                             "modifiers",
                             new Ours.JsonSchemaBuilder()
-                                .Type(Ours.SchemaValueType.Array)
+                                .Type(Ours.JsonSchemaType.Array)
                                 .PrefixItems(modifiers)
                                 .MinItems(2)
                                 .MaxItems(2)
@@ -67,19 +67,19 @@ public static class OrderSchemas
                 (
                     "customer",
                     new Ours.JsonSchemaBuilder()
-                        .Type(Ours.SchemaValueType.Object)
+                        .Type(Ours.JsonSchemaType.Object)
                         .Properties(
-                            ("firstName", new Ours.JsonSchemaBuilder().Type(Ours.SchemaValueType.String)),
-                            ("lastName", new Ours.JsonSchemaBuilder().Type(Ours.SchemaValueType.String)),
-                            ("email", new Ours.JsonSchemaBuilder().Type(Ours.SchemaValueType.String).Format(Ours.Formats.Email)),
-                            ("phoneNumber", new Ours.JsonSchemaBuilder().Type(Ours.SchemaValueType.String))
+                            ("firstName", new Ours.JsonSchemaBuilder().Type(Ours.JsonSchemaType.String)),
+                            ("lastName", new Ours.JsonSchemaBuilder().Type(Ours.JsonSchemaType.String)),
+                            ("email", new Ours.JsonSchemaBuilder().Type(Ours.JsonSchemaType.String).Format(Ours.JsonSchemaFormats.Email)),
+                            ("phoneNumber", new Ours.JsonSchemaBuilder().Type(Ours.JsonSchemaType.String))
                         )
                         .Required("lastName", "email", "phoneNumber")
                 ),
                 (
                     "lines",
                     new Ours.JsonSchemaBuilder()
-                        .Type(Ours.SchemaValueType.Array)
+                        .Type(Ours.JsonSchemaType.Array)
                         .PrefixItems(lines)
                         .MinItems((ulong)lineCount)
                         .MaxItems((ulong)lineCount)

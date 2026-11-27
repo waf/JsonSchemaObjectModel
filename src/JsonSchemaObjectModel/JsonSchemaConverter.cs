@@ -7,23 +7,23 @@ namespace JsonSchemaObjectModel;
 /// Reads and writes <see cref="JsonSchema"/> values with System.Text.Json.
 /// </summary>
 /// <remarks>
-/// <see cref="JsonSchema"/> has this converter by default, with <see cref="JsonSchemaReaderOptions.Default"/>.
+/// <see cref="JsonSchema"/> has this converter by default, with <see cref="JsonSchemaReadOptions.Default"/>.
 /// To read custom keywords, add an instance with your own options to <see cref="JsonSerializerOptions.Converters"/>.
 /// </remarks>
 public sealed class JsonSchemaConverter : JsonConverter<JsonSchema>
 {
-    private readonly JsonSchemaReaderOptions readerOptions;
+    private readonly JsonSchemaReadOptions readerOptions;
 
     /// <summary>
-    /// Creates a converter that reads with <see cref="JsonSchemaReaderOptions.Default"/>.
+    /// Creates a converter that reads with <see cref="JsonSchemaReadOptions.Default"/>.
     /// </summary>
     public JsonSchemaConverter()
-        : this(JsonSchemaReaderOptions.Default) { }
+        : this(JsonSchemaReadOptions.Default) { }
 
     /// <summary>
     /// Creates a converter that reads with the given options.
     /// </summary>
-    public JsonSchemaConverter(JsonSchemaReaderOptions readerOptions)
+    public JsonSchemaConverter(JsonSchemaReadOptions readerOptions)
     {
         ArgumentNullException.ThrowIfNull(readerOptions);
         this.readerOptions = readerOptions;

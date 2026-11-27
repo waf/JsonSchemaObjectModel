@@ -126,23 +126,23 @@ public abstract class SubschemaMapKeyword : ISubschemaMapKeyword, IKeywordValueE
         Schemas.GetHashCode();
 
     /// <summary>
-    /// Creates the keyword. The order of <paramref name="schemas"/> is kept. A <see cref="SchemaMap"/> is used without a copy.
+    /// Creates the keyword. The order of <paramref name="schemas"/> is kept. A <see cref="JsonSchemaMap"/> is used without a copy.
     /// </summary>
     /// <exception cref="ArgumentException"><paramref name="schemas"/> contains the same name more than once.</exception>
-    protected SubschemaMapKeyword(IEnumerable<KeyValuePair<string, JsonSchema>> schemas) => Schemas = SchemaMap.Create(schemas);
+    protected SubschemaMapKeyword(IEnumerable<KeyValuePair<string, JsonSchema>> schemas) => Schemas = JsonSchemaMap.Create(schemas);
 
     /// <inheritdoc/>
     public abstract string Name { get; }
 
     /// <inheritdoc/>
-    public SchemaMap Schemas { get; }
+    public JsonSchemaMap Schemas { get; }
 
     /// <summary>
     /// Returns a keyword of the same type with other subschemas, or this keyword if <paramref name="schemas"/> is the current map.
     /// </summary>
-    public abstract SubschemaMapKeyword WithSchemas(SchemaMap schemas);
+    public abstract SubschemaMapKeyword WithSchemas(JsonSchemaMap schemas);
 
-    ISubschemaMapKeyword ISubschemaMapKeyword.WithSchemas(SchemaMap schemas) => WithSchemas(schemas);
+    ISubschemaMapKeyword ISubschemaMapKeyword.WithSchemas(JsonSchemaMap schemas) => WithSchemas(schemas);
 
     /// <inheritdoc/>
     public void WriteValue(Utf8JsonWriter writer)

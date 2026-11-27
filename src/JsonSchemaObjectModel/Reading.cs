@@ -19,8 +19,8 @@ public delegate IJsonSchemaKeyword JsonSchemaKeywordReader(JsonElement value, Js
 /// A set of keyword readers. Parsing uses it to turn keyword names into typed keywords.
 /// </summary>
 /// <remarks>
-/// - Parsing keeps a keyword with no reader as an <see cref="UnknownKeyword"/>. The schema still round-trips.
-/// - A registry is mutable. <see cref="JsonSchemaReaderOptions"/> takes a snapshot of it.
+/// - Parsing keeps a keyword with no reader as an <see cref="UntypedKeyword"/>. The schema still round-trips.
+/// - A registry is mutable. <see cref="JsonSchemaReadOptions"/> takes a snapshot of it.
 /// </remarks>
 public sealed class JsonSchemaKeywordRegistry
 {
@@ -82,7 +82,7 @@ public sealed class JsonSchemaKeywordRegistry
     }
 
     /// <summary>
-    /// Removes a keyword reader. Parsing then keeps that keyword as an <see cref="UnknownKeyword"/>.
+    /// Removes a keyword reader. Parsing then keeps that keyword as an <see cref="UntypedKeyword"/>.
     /// </summary>
     public bool Remove(string name) => readers.Remove(name);
 
@@ -98,7 +98,7 @@ public sealed class JsonSchemaKeywordRegistry
 /// An instance is immutable and safe to share between threads.
 /// Create it once and reuse it.
 /// </remarks>
-public sealed class JsonSchemaReaderOptions
+public sealed class JsonSchemaReadOptions
 {
     private readonly FrozenDictionary<string, (string Name, JsonSchemaKeywordReader Reader)>.AlternateLookup<ReadOnlySpan<char>> readers;
 
@@ -106,7 +106,7 @@ public sealed class JsonSchemaReaderOptions
     /// Creates options that read the keywords in <paramref name="keywords"/>.
     /// Later changes to the registry have no effect on these options.
     /// </summary>
-    public JsonSchemaReaderOptions(JsonSchemaKeywordRegistry keywords)
+    public JsonSchemaReadOptions(JsonSchemaKeywordRegistry keywords)
     {
         ArgumentNullException.ThrowIfNull(keywords);
         readers = keywords.Freeze().GetAlternateLookup<ReadOnlySpan<char>>();
@@ -115,7 +115,7 @@ public sealed class JsonSchemaReaderOptions
     /// <summary>
     /// Options that read the draft 2020-12 keywords.
     /// </summary>
-    public static JsonSchemaReaderOptions Default { get; } = new(JsonSchemaKeywordRegistry.CreateDraft202012());
+    public static JsonSchemaReadOptions Default { get; } = new(JsonSchemaKeywordRegistry.CreateDraft202012());
 
     /// <summary>
     /// Finds the reader for a keyword name.
@@ -138,7 +138,7 @@ public sealed class JsonSchemaReaderOptions
 /// </remarks>
 public readonly partial struct JsonSchemaReadContext
 {
-    internal JsonSchemaReadContext(JsonSchemaReaderOptions options, string keywordName)
+    internal JsonSchemaReadContext(JsonSchemaReadOptions options, string keywordName)
     {
         Options = options;
         KeywordName = keywordName;
@@ -147,7 +147,7 @@ public readonly partial struct JsonSchemaReadContext
     /// <summary>
     /// The options of the current parse.
     /// </summary>
-    public JsonSchemaReaderOptions Options { get; }
+    public JsonSchemaReadOptions Options { get; }
 
     /// <summary>
     /// The name of the keyword that the reader is reading.
@@ -252,7 +252,7 @@ internal static class JsonSchemaReader
     /// <summary>
     /// Reads a root schema, and turns an internal error into a public one with the full location.
     /// </summary>
-    public static JsonSchema ReadRoot(JsonElement element, JsonSchemaReaderOptions options)
+    public static JsonSchema ReadRoot(JsonElement element, JsonSchemaReadOptions options)
     {
         try
         {
@@ -264,7 +264,7 @@ internal static class JsonSchemaReader
         }
     }
 
-    public static JsonSchema Read(JsonElement element, JsonSchemaReaderOptions options)
+    public static JsonSchema Read(JsonElement element, JsonSchemaReadOptions options)
     {
         switch (element.ValueKind)
         {
@@ -303,7 +303,7 @@ internal static class JsonSchemaReader
             IJsonSchemaKeyword keyword;
             if (reader is null)
             {
-                keyword = new UnknownKeyword(name, property.Value);
+                keyword = new UntypedKeyword(name, property.Value);
             }
             else
             {
@@ -336,7 +336,7 @@ internal static class JsonSchemaReader
     /// </summary>
     private static JsonSchemaKeywordReader? FindReader(
         JsonProperty property,
-        JsonSchemaReaderOptions options,
+        JsonSchemaReadOptions options,
         Span<char> nameBuffer,
         out string name
     )

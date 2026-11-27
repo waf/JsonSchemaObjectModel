@@ -53,7 +53,7 @@ public class TestSuiteRoundTripTests
 
         foreach (var keyword in AllKeywords(schema))
         {
-            Assert.Equal(!standardNames.Contains(keyword.Name), keyword is UnknownKeyword);
+            Assert.Equal(!standardNames.Contains(keyword.Name), keyword is UntypedKeyword);
         }
     }
 

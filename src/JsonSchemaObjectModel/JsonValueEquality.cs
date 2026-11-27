@@ -182,12 +182,12 @@ internal static class JsonValueEquality
     }
 
     /// <summary>
-    /// Returns a keyword value as a JSON element. An <see cref="UnknownKeyword"/> gives its element. Other keywords
+    /// Returns a keyword value as a JSON element. An <see cref="UntypedKeyword"/> gives its element. Other keywords
     /// write their value into a new document. Use this only for keywords that have no typed comparison.
     /// </summary>
     public static JsonElement KeywordValue(IJsonSchemaKeyword keyword)
     {
-        if (keyword is UnknownKeyword unknown)
+        if (keyword is UntypedKeyword unknown)
         {
             return unknown.Value;
         }

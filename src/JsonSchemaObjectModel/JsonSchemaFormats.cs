@@ -3,7 +3,7 @@ namespace JsonSchemaObjectModel;
 /// <summary>
 /// The format names that draft 2020-12 defines for the <c>format</c> keyword.
 /// </summary>
-public static class Formats
+public static class JsonSchemaFormats
 {
     /// <summary>An RFC 3339 date-time.</summary>
     public const string DateTime = "date-time";

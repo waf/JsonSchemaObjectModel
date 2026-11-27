@@ -11,16 +11,16 @@ public class JsonSchemaTests
     public void Builder_writes_keywords_in_the_order_they_were_added()
     {
         JsonSchema schema = new JsonSchemaBuilder()
-            .Schema(SchemaKeyword.Draft202012)
-            .Type(SchemaValueType.Object)
+            .SchemaDialect(SchemaKeyword.Draft202012)
+            .Type(JsonSchemaType.Object)
             .Properties(
                 ("id", new JsonSchemaBuilder().Const(Guid.Parse("3f2504e0-4f89-11d3-9a0c-0305e82c3301"))),
-                ("size", new JsonSchemaBuilder().Type(SchemaValueType.String).Pattern("^[SML]$")),
-                ("email", new JsonSchemaBuilder().Type(SchemaValueType.String).Format(Formats.Email)),
+                ("size", new JsonSchemaBuilder().Type(JsonSchemaType.String).Pattern("^[SML]$")),
+                ("email", new JsonSchemaBuilder().Type(JsonSchemaType.String).Format(JsonSchemaFormats.Email)),
                 (
                     "sides",
                     new JsonSchemaBuilder()
-                        .Type(SchemaValueType.Array)
+                        .Type(JsonSchemaType.Array)
                         .PrefixItems(new JsonSchemaBuilder().Enum("FRIES", "SALAD"))
                         .MinItems(1)
                         .MaxItems(1)
@@ -39,22 +39,88 @@ public class JsonSchemaTests
     [Fact]
     public void Builder_replaces_a_keyword_in_place()
     {
-        var schema = new JsonSchemaBuilder().Type(SchemaValueType.String).MinLength(1).Type(SchemaValueType.Null).Build();
+        var schema = new JsonSchemaBuilder().Type(JsonSchemaType.String).MinLength(1).Type(JsonSchemaType.Null).Build();
 
         Assert.Equal("""{"type":"null","minLength":1}""", schema.ToJsonString());
+    }
+
+    [Fact]
+    public void Builder_Add_rejects_a_duplicate_and_Set_replaces_it()
+    {
+        var builder = new JsonSchemaBuilder().Title("Lunch").Add(new UntypedKeyword("x-menu", JsonElements.From("lunch")));
+
+        Assert.Throws<ArgumentException>(() => builder.Add(new TitleKeyword("Dinner")));
+        builder.Set(new TitleKeyword("Dinner")).Set(new UntypedKeyword("x-menu", JsonElements.From("dinner")));
+
+        Assert.Equal("""{"title":"Dinner","x-menu":"dinner"}""", builder.Build().ToJsonString());
+    }
+
+    [Fact]
+    public void Type_shortcuts_start_a_builder_with_the_type()
+    {
+        (JsonSchemaBuilder Shortcut, JsonSchemaType Type)[] cases =
+        [
+            (JsonSchemaBuilder.String(), JsonSchemaType.String),
+            (JsonSchemaBuilder.Number(), JsonSchemaType.Number),
+            (JsonSchemaBuilder.Integer(), JsonSchemaType.Integer),
+            (JsonSchemaBuilder.Boolean(), JsonSchemaType.Boolean),
+            (JsonSchemaBuilder.Object(), JsonSchemaType.Object),
+            (JsonSchemaBuilder.Array(), JsonSchemaType.Array),
+            (JsonSchemaBuilder.Null(), JsonSchemaType.Null),
+        ];
+
+        foreach (var (shortcut, type) in cases)
+        {
+            JsonSchema schema = shortcut.MinLength(1);
+            Assert.Equal(new JsonSchemaBuilder().Type(type).MinLength(1).Build().ToJsonString(), schema.ToJsonString());
+            Assert.Same(TypeKeyword.For(type), schema.GetKeyword<TypeKeyword>());
+        }
+
+        Assert.NotSame(JsonSchemaBuilder.String(), JsonSchemaBuilder.String());
+    }
+
+    [Fact]
+    public void Default_and_Examples_accept_primitive_values()
+    {
+        var guid = Guid.Parse("3f2504e0-4f89-11d3-9a0c-0305e82c3301");
+        (JsonSchemaBuilder Primitive, JsonElement Element)[] cases =
+        [
+            (new JsonSchemaBuilder().Default("soup"), JsonElements.From("soup")),
+            (new JsonSchemaBuilder().Default((string?)null), JsonElements.Null),
+            (new JsonSchemaBuilder().Default(2), JsonElements.From(2)),
+            (new JsonSchemaBuilder().Default(12.50m), JsonElements.From(12.50m)),
+            (new JsonSchemaBuilder().Default(0.5), JsonElements.From(0.5)),
+            (new JsonSchemaBuilder().Default(true), JsonElements.From(true)),
+            (new JsonSchemaBuilder().Default(guid), JsonElements.From(guid)),
+        ];
+
+        foreach (var (primitive, element) in cases)
+        {
+            JsonSchema expected = new JsonSchemaBuilder().Default(element);
+            JsonSchema actual = primitive;
+            Assert.Equal(expected.ToJsonString(), actual.ToJsonString());
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected.GetHashCode(), actual.GetHashCode());
+            Assert.True(JsonElement.DeepEquals(element, actual.GetKeyword<DefaultKeyword>()!.Value));
+        }
+
+        JsonSchema examples = new JsonSchemaBuilder().Examples("Margherita", "Marinara");
+        Assert.Equal("""{"examples":["Margherita","Marinara"]}""", examples.ToJsonString());
+        Assert.Equal(new JsonSchemaBuilder().Examples(JsonElements.From("Margherita"), JsonElements.From("Marinara")).Build(), examples);
+        Assert.Throws<ArgumentNullException>(() => new JsonSchemaBuilder().Examples("Margherita", null!));
     }
 
     [Fact]
     public void Every_builder_method_writes_a_valid_draft_2020_12_schema_that_round_trips()
     {
         JsonSchema schema = new JsonSchemaBuilder()
-            .Schema(SchemaKeyword.Draft202012)
+            .SchemaDialect(SchemaKeyword.Draft202012)
             .Id("https://example.com/everything")
             .Anchor("root")
             .DynamicAnchor("meta")
             .Comment("Uses every builder method.")
             .Vocabulary(("https://json-schema.org/draft/2020-12/vocab/core", true))
-            .Defs(("positive", new JsonSchemaBuilder().Type(SchemaValueType.Number | SchemaValueType.Integer).ExclusiveMinimum(0)))
+            .Defs(("positive", new JsonSchemaBuilder().Type(JsonSchemaType.Number | JsonSchemaType.Integer).ExclusiveMinimum(0)))
             .AllOf(true, new JsonSchemaBuilder().Ref("#/$defs/positive"))
             .AnyOf(new JsonSchemaBuilder().DynamicRef("#meta"), false)
             .OneOf(true)
@@ -77,19 +143,19 @@ public class JsonSchemaTests
             .PropertyNames(new JsonSchemaBuilder().Pattern("^[a-z]+$"))
             .UnevaluatedItems(false)
             .UnevaluatedProperties(false)
-            .Enum(JsonValues.From(1), JsonValues.From("one"), JsonValues.Null)
+            .Enum(JsonElements.From(1), JsonElements.From("one"), JsonElements.Null)
             .DependentRequired(("a", ["b", "c"]))
             .Title("Everything")
             .Description("A schema that uses every builder method.")
-            .Default(JsonValues.From(true))
+            .Default(JsonElements.From(true))
             .Deprecated()
             .ReadOnly()
             .WriteOnly(false)
-            .Examples(JsonValues.From(1.25), JsonValues.From(false))
-            .Format(Formats.DateTime)
+            .Examples(JsonElements.From(1.25), JsonElements.From(false))
+            .Format(JsonSchemaFormats.DateTime)
             .ContentEncoding("base64")
             .ContentMediaType("application/json")
-            .ContentSchema(new JsonSchemaBuilder().Type(SchemaValueType.Object));
+            .ContentSchema(new JsonSchemaBuilder().Type(JsonSchemaType.Object));
 
         var json = schema.ToJsonString(indented);
 
@@ -129,13 +195,23 @@ public class JsonSchemaTests
         Assert.Equal("""{"type":["string"]}""", JsonSchema.Parse("""{"type":["string"]}""").ToJsonString());
         Assert.Equal("""{"type":"string"}""", JsonSchema.Parse("""{"type":"string"}""").ToJsonString());
         Assert.Equal(
-            SchemaValueType.String | SchemaValueType.Null,
+            JsonSchemaType.String | JsonSchemaType.Null,
             JsonSchema.Parse("""{"type":["null","string"]}""").Type
         );
         Assert.Equal(
             """{"type":["object","null"]}""",
-            new JsonSchemaBuilder().Type(SchemaValueType.Null | SchemaValueType.Object).Build().ToJsonString()
+            new JsonSchemaBuilder().Type(JsonSchemaType.Null | JsonSchemaType.Object).Build().ToJsonString()
         );
+        Assert.Equal(
+            """{"type":["null","object"]}""",
+            new JsonSchemaBuilder().Type(JsonSchemaType.Null, JsonSchemaType.Object).Build().ToJsonString()
+        );
+        Assert.Equal("""{"type":["string"]}""", new JsonSchemaBuilder().Type([JsonSchemaType.String]).Build().ToJsonString());
+
+        var parsed = JsonSchema.Parse("""{"type":["null","string"]}""").GetKeyword<TypeKeyword>()!;
+        Assert.True(parsed.IsArrayForm);
+        Assert.Equal([JsonSchemaType.Null, JsonSchemaType.String], parsed.Types);
+        Assert.False(JsonSchema.Parse("""{"type":"string"}""").GetKeyword<TypeKeyword>()!.IsArrayForm);
     }
 
     [Fact]
@@ -240,17 +316,17 @@ public class JsonSchemaTests
     [Fact]
     public void A_type_keyword_needs_at_least_one_type()
     {
-        Assert.Throws<ArgumentException>(() => new TypeKeyword(Array.Empty<SchemaValueType>()));
+        Assert.Throws<ArgumentException>(() => new TypeKeyword(Array.Empty<JsonSchemaType>()));
     }
 
     [Fact]
     public void Keyword_constructors_reject_invalid_arguments()
     {
-        Assert.Throws<ArgumentException>(() => new TypeKeyword(SchemaValueType.None));
-        Assert.Throws<ArgumentException>(() => new TypeKeyword(SchemaValueType.String | (SchemaValueType)(1 << 20)));
-        Assert.Throws<ArgumentException>(() => new TypeKeyword([SchemaValueType.String | SchemaValueType.Null]));
-        Assert.Throws<ArgumentException>(() => new TypeKeyword([SchemaValueType.String, SchemaValueType.String]));
-        Assert.Throws<ArgumentOutOfRangeException>(() => TypeKeyword.GetTypeName(SchemaValueType.String | SchemaValueType.Null));
+        Assert.Throws<ArgumentException>(() => new TypeKeyword(JsonSchemaType.None));
+        Assert.Throws<ArgumentException>(() => new TypeKeyword(JsonSchemaType.String | (JsonSchemaType)(1 << 20)));
+        Assert.Throws<ArgumentException>(() => new TypeKeyword([JsonSchemaType.String | JsonSchemaType.Null]));
+        Assert.Throws<ArgumentException>(() => new TypeKeyword([JsonSchemaType.String, JsonSchemaType.String]));
+        Assert.Throws<ArgumentOutOfRangeException>(() => TypeKeyword.GetTypeName(JsonSchemaType.String | JsonSchemaType.Null));
         Assert.Throws<ArgumentException>(() => new AllOfKeyword(new List<JsonSchema>()));
         Assert.Throws<ArgumentException>(() => new RequiredKeyword(["table", "table"]));
         Assert.Throws<ArgumentNullException>(() => new RequiredKeyword(["table", null!]));
@@ -271,7 +347,7 @@ public class JsonSchemaTests
     [Fact]
     public void Type_names_convert_both_ways()
     {
-        foreach (var type in Enum.GetValues<SchemaValueType>().Where(type => type != SchemaValueType.None && (type & (type - 1)) == 0))
+        foreach (var type in Enum.GetValues<JsonSchemaType>().Where(type => type != JsonSchemaType.None && (type & (type - 1)) == 0))
         {
             var name = TypeKeyword.GetTypeName(type);
 
@@ -283,7 +359,7 @@ public class JsonSchemaTests
         }
 
         Assert.False(TypeKeyword.TryParseTypeName("text", out var unknown));
-        Assert.Equal(SchemaValueType.None, unknown);
+        Assert.Equal(JsonSchemaType.None, unknown);
         Assert.False(TypeKeyword.TryParseTypeName((string?)null, out _));
     }
 
@@ -302,8 +378,13 @@ public class JsonSchemaTests
             .PrefixItems(bowl, true)
             .Properties(("soup", bowl))
             .PatternProperties(("^side-", bowl))
-            .Enum(JsonValues.From(12.50m), JsonValues.From(guid))
-            .Required("soup", "noodles");
+            .Enum(JsonElements.From(12.50m), JsonElements.From(guid))
+            .Required("soup", "noodles")
+            .Type(JsonSchemaType.Object, JsonSchemaType.Null)
+            .Vocabulary(("https://example.com/vocab/menu", false))
+            .DependentRequired(("noodles", ["soup"]))
+            .Examples(JsonElements.From(1), JsonElements.From("one"))
+            .Examples("one", "two");
 
         JsonSchema fromCollections = new JsonSchemaBuilder()
             .Defs(new List<(string, JsonSchema)> { ("bowl", bowl) })
@@ -314,15 +395,27 @@ public class JsonSchemaTests
             .PrefixItems(new List<JsonSchema> { bowl, true })
             .Properties(new List<(string, JsonSchema)> { ("soup", bowl) })
             .PatternProperties(new List<(string, JsonSchema)> { ("^side-", bowl) })
-            .Enum(new List<JsonElement> { JsonValues.From(12.50m), JsonValues.From(guid) })
-            .Required(new List<string> { "soup", "noodles" });
+            .Enum(new List<JsonElement> { JsonElements.From(12.50m), JsonElements.From(guid) })
+            .Required(new List<string> { "soup", "noodles" })
+            .Type(new List<JsonSchemaType> { JsonSchemaType.Object, JsonSchemaType.Null })
+            .Vocabulary(new List<(string, bool)> { ("https://example.com/vocab/menu", false) })
+            .DependentRequired(new List<(string, IEnumerable<string>)> { ("noodles", ["soup"]) })
+            .Examples(new List<JsonElement> { JsonElements.From(1), JsonElements.From("one") })
+            .Examples(new List<string> { "one", "two" });
 
         JsonSchema fromPairs = new JsonSchemaBuilder()
+            .Vocabulary(new Dictionary<string, bool> { ["https://example.com/vocab/menu"] = false })
             .Defs(new Dictionary<string, JsonSchema> { ["bowl"] = bowl })
-            .Properties(new Dictionary<string, JsonSchema> { ["soup"] = bowl });
+            .DependentSchemas(new Dictionary<string, JsonSchema> { ["noodles"] = bowl })
+            .Properties(new Dictionary<string, JsonSchema> { ["soup"] = bowl })
+            .PatternProperties(new Dictionary<string, JsonSchema> { ["^side-"] = bowl })
+            .DependentRequired(new Dictionary<string, IEnumerable<string>> { ["noodles"] = ["soup"] });
 
         Assert.Equal(fromParams.ToJsonString(), fromCollections.ToJsonString());
-        Assert.Equal("""{"$defs":{"bowl":{"minLength":1}},"properties":{"soup":{"minLength":1}}}""", fromPairs.ToJsonString());
+        Assert.Equal(
+            """{"$vocabulary":{"https://example.com/vocab/menu":false},"$defs":{"bowl":{"minLength":1}},"dependentSchemas":{"noodles":{"minLength":1}},"properties":{"soup":{"minLength":1}},"patternProperties":{"^side-":{"minLength":1}},"dependentRequired":{"noodles":["soup"]}}""",
+            fromPairs.ToJsonString()
+        );
         Assert.Equal(
             """{"enum":["S","M","L"]}""",
             new JsonSchemaBuilder().Enum(new List<string> { "S", "M", "L" }).Build().ToJsonString()
@@ -333,7 +426,7 @@ public class JsonSchemaTests
     [Fact]
     public void Builder_removes_a_keyword_by_name()
     {
-        var builder = new JsonSchemaBuilder().Type(SchemaValueType.String).MinLength(1).Format("menu-code");
+        var builder = new JsonSchemaBuilder().Type(JsonSchemaType.String).MinLength(1).Format("menu-code");
 
         builder.Remove(TypeKeyword.KeywordName).Remove("missing");
 
@@ -345,14 +438,14 @@ public class JsonSchemaTests
     public void Escaped_and_long_keyword_names_find_their_reader()
     {
         var longName = "x-" + new string('a', 100);
-        var registry = JsonSchemaKeywordRegistry.CreateDraft202012().Add(longName, (value, context) => new UnknownKeyword(longName, value));
+        var registry = JsonSchemaKeywordRegistry.CreateDraft202012().Add(longName, (value, context) => new UntypedKeyword(longName, value));
 
-        var schema = JsonSchema.Parse($$"""{"type":"string","{{longName}}":1,"x-{{new string('b', 100)}}":2}""", new JsonSchemaReaderOptions(registry));
+        var schema = JsonSchema.Parse($$"""{"type":"string","{{longName}}":1,"x-{{new string('b', 100)}}":2}""", new JsonSchemaReadOptions(registry));
 
         Assert.IsType<TypeKeyword>(schema.Keywords[0]);
         Assert.Equal("type", schema.Keywords[0].Name);
         Assert.Same(longName, schema.Keywords[1].Name);
-        Assert.IsType<UnknownKeyword>(schema.Keywords[2]);
+        Assert.IsType<UntypedKeyword>(schema.Keywords[2]);
         Assert.Equal(JsonSchema.Parse($$"""{"type":"string","{{longName}}":1,"x-{{new string('b', 100)}}":2}"""), schema);
     }
 
@@ -361,7 +454,7 @@ public class JsonSchemaTests
     {
         var registry = JsonSchemaKeywordRegistry.CreateDraft202012().Add("x-dish", (_, _) => new TitleKeyword("Pad thai"));
 
-        Assert.Throws<InvalidOperationException>(() => JsonSchema.Parse("""{"x-dish":1}""", new JsonSchemaReaderOptions(registry)));
+        Assert.Throws<InvalidOperationException>(() => JsonSchema.Parse("""{"x-dish":1}""", new JsonSchemaReadOptions(registry)));
     }
 
     [Fact]
@@ -391,7 +484,7 @@ public class JsonSchemaTests
     {
         var registry = JsonSchemaKeywordRegistry.CreateDraft202012();
         registry.Remove(FormatKeyword.KeywordName);
-        var parsed = JsonSchema.Parse("""{"type":"string","format":"email"}""", new JsonSchemaReaderOptions(registry));
+        var parsed = JsonSchema.Parse("""{"type":"string","format":"email"}""", new JsonSchemaReadOptions(registry));
 
         var builder = new JsonSchemaBuilder();
         foreach (var keyword in parsed.Keywords)
@@ -400,7 +493,7 @@ public class JsonSchemaTests
         }
 
         var copy = builder.Build();
-        Assert.IsType<UnknownKeyword>(copy.Keywords[1]);
+        Assert.IsType<UntypedKeyword>(copy.Keywords[1]);
         Assert.Null(copy.Format);
         Assert.Equal("""{"type":"string","format":"email"}""", copy.ToJsonString());
     }
@@ -422,7 +515,7 @@ public class JsonSchemaTests
 
         var schema = JsonSchema.Parse(json);
 
-        Assert.IsType<UnknownKeyword>(schema.Keywords[0]);
+        Assert.IsType<UntypedKeyword>(schema.Keywords[0]);
         Assert.Equal(json, schema.ToJsonString());
     }
 

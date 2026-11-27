@@ -14,7 +14,7 @@ Goals, in priority order:
    - The text can differ. String escapes depend on the encoder, and a non-negative integer such as `2.0` is written as `2`.
    - The tests compare with `JsonElement.DeepEquals`.
    - All draft 2020-12 keywords are typed classes.
-   - A keyword with no reader is kept as an `UnknownKeyword` that holds its JSON.
+   - A keyword with no reader is kept as an `UntypedKeyword` that holds its JSON.
    - Numbers are kept as JSON, so values beyond `decimal` and `double` survive. Checks on numbers, such as `multipleOf` > 0, read the JSON text, not a `double`.
    - One deliberate limit: the non-negative integer keywords (`minLength`, `maxItems`, ...) hold a `ulong`. A value above `ulong.MaxValue` fails to parse. No real length or count comes near it.
    - `type` keeps its string or array form.
@@ -23,7 +23,7 @@ Goals, in priority order:
 4. **Low allocation, within reason.**
    - Build, Parse, Write and Navigate are the hot paths. The benchmarks measure them against JsonSchema.Net and NJsonSchema.
    - Keep each hot path at or below its current allocations.
-5. **Immutable and thread-safe.** A `JsonSchema` and its keywords never change after construction. `JsonSchemaReaderOptions` is a frozen snapshot that is safe to share.
+5. **Immutable and thread-safe.** A `JsonSchema` and its keywords never change after construction. `JsonSchemaReadOptions` is a frozen snapshot that is safe to share.
 
 Non-goals. Do not add these without the maintainer's agreement:
 
@@ -71,19 +71,19 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
 - `src/JsonSchemaObjectModel/`:
   - `JsonSchema.cs`: the immutable schema. It has `Parse`, `FromJsonElement`, `WriteTo`, `ToJsonString`, `GetKeyword`, `FindSubschema` (JSON Pointer), `With`, `Without` and equality.
   - `JsonSchema.Traversal.cs`: `Walk` (parent first) and `Rewrite` (children first, with structural sharing).
-  - `SchemaLocation.cs`: `SchemaLocation`, the visitor and rewriter contracts, and the pooled path of a walk.
-  - `JsonSchemaBuilder.cs`: the fluent builder and the `JsonValues` helpers.
-  - `Reading.cs`: `JsonSchemaKeywordRegistry`, `JsonSchemaReaderOptions`, `JsonSchemaReadContext`, the internal reader, and `SchemaReadException`.
+  - `JsonSchemaLocation.cs`: `JsonSchemaLocation`, the visitor and rewriter contracts, and the pooled path of a walk.
+  - `JsonSchemaBuilder.cs`: the fluent builder and the `JsonElements` helpers.
+  - `Reading.cs`: `JsonSchemaKeywordRegistry`, `JsonSchemaReadOptions`, `JsonSchemaReadContext`, the internal reader, and `SchemaReadException`.
   - `StandardKeywordReaders.cs`: the draft 2020-12 readers, and the typed read helpers on `JsonSchemaReadContext`.
-  - `SchemaMap.cs`: the immutable ordered map of named subschemas, for `properties`, `$defs` and the other map keywords.
+  - `JsonSchemaMap.cs`: the immutable ordered map of named subschemas, for `properties`, `$defs` and the other map keywords.
   - `JsonNumber.cs`: the public JSON number type for `minimum`, `maximum`, `multipleOf` and the exclusive limits. Equality compares values (`1` equals `1.0`).
   - `JsonValueEquality.cs`: the equality and hash rules for JSON values. `Keywords/KeywordEquality.cs` applies them to keywords.
   - `JsonNumberParts.cs`: the internal reader of number text (sign, significand, scale). Use it for checks and comparisons on numbers. Do not convert to `double`.
   - `Keywords/`: one class per keyword, grouped by vocabulary.
     - The base classes in `KeywordBases.cs` group keywords by value shape.
-    - `PrimitiveJsonValue.cs` holds a builder-supplied `const` value.
+    - `PrimitiveJsonValue.cs` holds a builder-supplied `const` or `default` value.
     - `SharedKeywords.cs` builds the caches for shared keyword instances.
-  - `JsonSchemaAccessors.cs`: extension properties such as `schema.Properties` and `schema.Required`.
+  - `JsonSchemaExtensions.cs`: extension properties such as `schema.Properties` and `schema.Required`.
   - `JsonSchemaConverter.cs`: the System.Text.Json converter.
 - `tests/JsonSchemaObjectModel.Tests/`: the xUnit v3 tests.
   - `TestSuiteRoundTripTests` runs every draft 2020-12 schema in the official Test Suite.
@@ -99,13 +99,17 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
 - **Keywords:** each keyword implements `IJsonSchemaKeyword` (`Name`, `WriteValue`).
   - A custom keyword type can implement `IJsonSchemaKeyword<TSelf>` instead. It has a static `KeywordName` and `Read`, and registers with `registry.Add<T>()`. It also declares `public string Name => KeywordName;`. The interface has no default `Name`, because a default interface member cannot be called on the concrete type.
   - Keep the delegate overloads `Add(name, reader)` and `Set(name, reader)`. They serve readers with run-time configuration, and one type for many names.
-  - An `UnknownKeyword` can have a standard name, for example after a parse with a registry that has no reader for it. The builder accepts it, so a copy of a parsed schema works. The typed accessors only see typed keywords.
+  - An `UntypedKeyword` can have a standard name, for example after a parse with a registry that has no reader for it. The builder accepts it, so a copy of a parsed schema works. The typed accessors only see typed keywords.
   - A keyword with subschemas also implements `ISingleSubschemaKeyword`, `ISubschemaArrayKeyword` or `ISubschemaMapKeyword`. `FindSubschema` and the tests use those interfaces to walk a schema, so a custom keyword with subschemas must implement one.
     - Each interface has a "with" method (`WithSchema` or `WithSchemas`) that returns a keyword of the same type with other subschemas. It must return `this` when the subschemas are the current instances, so that edits share unchanged parts.
     - The 19 standard subschema keywords override it with a covariant return type. The single-subschema keywords call their `For` factory, so `true` and `false` stay shared.
   - `JsonSchema.With` and `JsonSchema.Without` make an edited copy of a schema. They throw for a boolean schema, because `true` is not `{}`.
   - Each standard keyword has a `KeywordName` constant. Its reader is registered in `StandardKeywordReaders.AddDraft202012`.
   - The test `Every_builder_method_writes_a_valid_draft_2020_12_schema_that_round_trips` fails when a standard keyword has no builder method.
+  - The builder methods have the names of their keywords. The one exception is `SchemaDialect` for `$schema`, because `Schema` on a schema builder reads like a subschema.
+  - The static methods `JsonSchemaBuilder.String()`, `Object()` and the other JSON type names create a builder that starts with `type`. They have type names, not keyword names, so they do not clash with the instance methods. C# does not allow a static and an instance method with the same signature, so do not add a static shortcut with a keyword name.
+  - The builder's keyword methods call `Set`, so a second call replaces the keyword. `Add` throws for a duplicate name, as `JsonSchemaKeywordRegistry.Add` does.
+- **Naming:** public types that are about schemas start with `JsonSchema` (`JsonSchemaMap`, `JsonSchemaLocation`, `IJsonSchemaVisitor`, ...). Keyword types end with `Keyword`.
 - **Reading:**
   - The reader returns the registry's own name string for a known keyword, so parsing does not allocate keyword names.
   - Each keyword reader gets the `JsonElement` value and a `JsonSchemaReadContext`.
@@ -116,13 +120,13 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
 - **Allocation techniques.** Keep these when you change the code:
   - **`Parse` and the converter:** they use `JsonElement.ParseValue`, which gives one document that owns its memory. `Clone()` on its elements is then free, so `const`, `enum` and unknown keywords share it.
   - **Builder values:** they are written directly, and become `JsonElement`s only when `.Value`/`.Values` is read. That happens lazily, and a race between threads at most makes a spare copy.
-    - A `const` value is a `PrimitiveJsonValue`. Its numeric and GUID values share one 16-byte field, so nothing is boxed.
-    - A string `enum` from the builder is a plain string array. It does not use `PrimitiveJsonValue`, which would make each entry twice as large.
+    - A `const` or `default` value is a `PrimitiveJsonValue`. Its numeric and GUID values share one 16-byte field, so nothing is boxed.
+    - A string `enum` or `examples` from the builder is a plain string array. It does not use `PrimitiveJsonValue`, which would make each entry twice as large.
     - A number for `minimum`, `maximum` and the other number keywords is a `JsonNumber`. A builder value stays a `long`, `decimal` or `double`, so it needs no JSON document. A parsed value keeps its element, which shares the document of the parse.
   - **Arrays and maps:**
     - Readers make exact-size arrays and wrap them with `ImmutableCollectionsMarshal.AsImmutableArray`.
     - A keyword adopts an `ImmutableArray` without copying it.
-    - A map keyword holds a `SchemaMap`, which is immutable, so a keyword adopts one without a copy. The reader builds its entry array at the exact size.
+    - A map keyword holds a `JsonSchemaMap`, which is immutable, so a keyword adopts one without a copy. The reader builds its entry array at the exact size.
   - **Shared instances:** keywords are immutable, so the reader and the builder share instances through `For(...)` factories.
     - `TypeKeyword.For` for a single type.
     - `FormatKeyword.For` for the 19 standard formats. The reader matches the UTF-8 value, so it allocates nothing for them.
@@ -130,11 +134,11 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
     - The boolean keywords (`uniqueItems`, `deprecated`, `readOnly`, `writeOnly`).
     - The subschema keywords that often hold `true` or `false` (`additionalProperties`, `items`, `not`, ...).
     - Call the `For` factory, not the constructor, in the reader and the builder.
-  - **Builder calls:** the builder has `params ReadOnlySpan<T>` overloads, so fluent calls do not allocate params arrays. Keep an `IEnumerable<T>` overload next to each one for collections.
+  - **Builder calls:** the builder has `params ReadOnlySpan<T>` overloads, so fluent calls do not allocate params arrays. Keep an `IEnumerable<T>` overload next to each one for collections. A map keyword also has an `IEnumerable<KeyValuePair<,>>` overload, so a dictionary or a `JsonSchemaMap` passes straight in.
   - **Writing:** `ToJsonString` reuses a buffer and a `Utf8JsonWriter` for each thread when the options are default. It handles nested calls, and does not keep buffers over 64 KB.
-  - **Walk and rewrite:** a struct visitor or rewriter is a generic argument, so the calls have static dispatch and no delegate. The path is a pooled array, and `SchemaLocation` is a `ref struct` over it, so a walk or a rewrite that changes nothing allocates nothing. `ToPointer` allocates only when called. A rewrite copies a keyword array, a subschema array or a map entry array only when the first entry changes. `AllocationPathTests` checks the zero-allocation case.
-  - **Navigating:** `SchemaMap` searches up to 16 entries linearly, and builds an index for larger maps. Both lookups accept a `ReadOnlySpan<char>`, so `FindSubschema` allocates no key strings.
-    - `foreach` over a `SchemaMap` uses a struct enumerator.
+  - **Walk and rewrite:** a struct visitor or rewriter is a generic argument, so the calls have static dispatch and no delegate. The path is a pooled array, and `JsonSchemaLocation` is a `ref struct` over it, so a walk or a rewrite that changes nothing allocates nothing. `ToPointer` allocates only when called. A rewrite copies a keyword array, a subschema array or a map entry array only when the first entry changes. `AllocationPathTests` checks the zero-allocation case.
+  - **Navigating:** `JsonSchemaMap` searches up to 16 entries linearly, and builds an index for larger maps. Both lookups accept a `ReadOnlySpan<char>`, so `FindSubschema` allocates no key strings.
+    - `foreach` over a `JsonSchemaMap` uses a struct enumerator.
     - `Keys` and `Values` are `readonly struct` views of the entry array, with struct enumerators. They are boxed only through `IEnumerable<T>`. Do not turn them back into cached classes: that adds a mutable field and an allocation.
 - **Escaping:** `ToJsonString` uses `JavaScriptEncoder.UnsafeRelaxedJsonEscaping` when the options have no encoder, so `pattern` values and non-ASCII text stay readable. `WriteTo` and the converter use the encoder of the caller's writer. Do not change that: the caller owns the writer.
 - **Equality:** `JsonSchema.Equals` is true if, and only if, the two schemas write equal JSON, as `JsonElement.DeepEquals` defines it.
@@ -142,7 +146,7 @@ Before you call a change done: run `dotnet build`, then `dotnet test`. If the ch
   - `true` and `{}` are not equal, and `"string"` and `["string"]` are not equal. The comparison is structural, not about validation.
   - `JsonValueEquality.cs` holds the rules and the hash helpers. Numbers use `JsonNumberParts`, because `JsonElement.DeepEquals` throws for an exponent beyond `int`.
   - Keywords of the same type compare their fields through the internal `IKeywordValueEquality`. Keywords of different types, and custom keywords, compare the JSON that they write.
-  - A typed keyword's hash code must be the hash code of the JSON that it writes. Then a typed keyword and an `UnknownKeyword` with the same JSON are equal with the same hash code. Build the hash with the `JsonValueEquality` helpers.
+  - A typed keyword's hash code must be the hash code of the JSON that it writes. Then a typed keyword and an `UntypedKeyword` with the same JSON are equal with the same hash code. Build the hash with the `JsonValueEquality` helpers.
   - `EqualityTests.Typed_and_untyped_parses_of_a_schema_are_equal_with_the_same_hash_code` checks this for every Test Suite schema. If you add a keyword with a new value shape, implement `IKeywordValueEquality` and run that test.
 - **Thread safety:** everything is immutable after construction, except these:
   - The lazy element caches on value keywords (`JsonValueKeyword`, `JsonValueArrayKeyword`). They are benign races: two threads can each create an element, and one is kept.
@@ -181,4 +185,4 @@ The tag triggers `.github/workflows/release.yml`. That workflow packs the librar
   - `Microsoft.Testing.Platform.MSBuild`, or `dotnet test` reports a handshake failure.
   - `Microsoft.Testing.Extensions.TrxReport`, for `--report-trx`.
   - `Microsoft.Testing.Extensions.CodeCoverage`, for `--coverage`.
-- **Name resolution in benchmarks:** inside `namespace JsonSchemaObjectModel.Benchmarks`, unqualified `SchemaValueType`, `Formats` and keyword names resolve to this library before any `using Json.Schema`. Qualify the JsonSchema.Net types, for example `JsonEverything.SchemaValueType`.
+- **Name resolution in benchmarks:** inside `namespace JsonSchemaObjectModel.Benchmarks`, unqualified `JsonSchemaBuilder`, `JsonSchema` and keyword names resolve to this library before any `using Json.Schema`. Qualify the JsonSchema.Net types, for example `JsonEverything.SchemaValueType`, and qualify this library's types as `Ours.`.

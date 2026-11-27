@@ -28,7 +28,7 @@ public readonly partial struct JsonSchemaReadContext
     /// Reads a number value. The result does not depend on the source document.
     /// </summary>
     public JsonNumber ReadNumber(JsonElement value) =>
-        value.ValueKind == JsonValueKind.Number ? JsonNumber.FromElement(value) : throw Error("The value must be a number.");
+        value.ValueKind == JsonValueKind.Number ? JsonNumber.FromJsonElement(value) : throw Error("The value must be a number.");
 
     /// <summary>
     /// Reads a non-negative integer. A number with a zero fractional part, for example <c>2.0</c> or <c>1e2</c>, is an integer.
@@ -88,7 +88,7 @@ public readonly partial struct JsonSchemaReadContext
     /// <remarks>
     /// A keyword that derives from <see cref="SubschemaMapKeyword"/> uses the result without a copy.
     /// </remarks>
-    public SchemaMap ReadSchemaMap(JsonElement value)
+    public JsonSchemaMap ReadSchemaMap(JsonElement value)
     {
         if (value.ValueKind != JsonValueKind.Object)
         {
@@ -99,12 +99,12 @@ public readonly partial struct JsonSchemaReadContext
         var entries = new KeyValuePair<string, JsonSchema>[count];
 
         //  A large map gets its index here. The index also finds a duplicate name, so the map need not search again.
-        var index = SchemaMap.NeedsIndex(count) ? new Dictionary<string, int>(count, StringComparer.Ordinal) : null;
+        var index = JsonSchemaMap.NeedsIndex(count) ? new Dictionary<string, int>(count, StringComparer.Ordinal) : null;
         var position = 0;
         foreach (var property in value.EnumerateObject())
         {
             var name = property.Name;
-            if (index is null ? SchemaMap.ContainsName(entries.AsSpan(0, position), name) : !index.TryAdd(name, position))
+            if (index is null ? JsonSchemaMap.ContainsName(entries.AsSpan(0, position), name) : !index.TryAdd(name, position))
             {
                 var duplicate = (SchemaReadException)Error($"The name '{name}' occurs more than once.");
                 duplicate.AddParent(name);
@@ -114,7 +114,7 @@ public readonly partial struct JsonSchemaReadContext
             entries[position++] = new(name, ReadSchema(property.Value, name));
         }
 
-        return SchemaMap.FromUniqueEntries(entries, index);
+        return JsonSchemaMap.FromUniqueEntries(entries, index);
     }
 
     /// <summary>
@@ -305,9 +305,9 @@ internal static class StandardKeywordReaders
             throw context.Error("The array must contain at least one type.");
         }
 
-        var types = new SchemaValueType[length];
+        var types = new JsonSchemaType[length];
         var index = 0;
-        var seen = SchemaValueType.None;
+        var seen = JsonSchemaType.None;
         foreach (var item in value.EnumerateArray())
         {
             if (!TypeKeyword.TryParseTypeName(item, out var type))

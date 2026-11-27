@@ -115,7 +115,7 @@ public sealed class DependentSchemasKeyword(IEnumerable<KeyValuePair<string, Jso
     public override string Name => KeywordName;
 
     /// <inheritdoc/>
-    public override DependentSchemasKeyword WithSchemas(SchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
+    public override DependentSchemasKeyword WithSchemas(JsonSchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
 }
 
 /// <summary>The <c>prefixItems</c> keyword.</summary>
@@ -189,7 +189,7 @@ public sealed class PropertiesKeyword(IEnumerable<KeyValuePair<string, JsonSchem
     public override string Name => KeywordName;
 
     /// <inheritdoc/>
-    public override PropertiesKeyword WithSchemas(SchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
+    public override PropertiesKeyword WithSchemas(JsonSchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
 }
 
 /// <summary>The <c>patternProperties</c> keyword.</summary>
@@ -203,7 +203,7 @@ public sealed class PatternPropertiesKeyword(IEnumerable<KeyValuePair<string, Js
     public override string Name => KeywordName;
 
     /// <inheritdoc/>
-    public override PatternPropertiesKeyword WithSchemas(SchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
+    public override PatternPropertiesKeyword WithSchemas(JsonSchemaMap schemas) => ReferenceEquals(schemas, Schemas) ? this : new(schemas);
 }
 
 /// <summary>The <c>additionalProperties</c> keyword.</summary>

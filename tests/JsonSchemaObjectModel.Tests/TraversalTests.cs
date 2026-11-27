@@ -15,7 +15,7 @@ public class TraversalTests
         var visited = 0;
 
         root.Walk(
-            (JsonSchema schema, in SchemaLocation location) =>
+            (JsonSchema schema, in JsonSchemaLocation location) =>
             {
                 visited++;
                 Assert.Same(schema, root.FindSubschema(location.ToPointer()));
@@ -34,7 +34,7 @@ public class TraversalTests
         var identity = new IdentityRewriter();
 
         Assert.Same(root, root.Rewrite(ref identity));
-        Assert.Same(root, root.Rewrite((JsonSchema schema, in SchemaLocation _) => schema));
+        Assert.Same(root, root.Rewrite((JsonSchema schema, in JsonSchemaLocation _) => schema));
         Assert.Equal(CountSchemas(root), identity.Calls);
     }
 
@@ -49,7 +49,7 @@ public class TraversalTests
             """
         );
 
-        var result = order.Rewrite((JsonSchema schema, in SchemaLocation _) => schema.BooleanValue is null ? schema.Without(CommentKeyword.KeywordName) : schema);
+        var result = order.Rewrite((JsonSchema schema, in JsonSchemaLocation _) => schema.BooleanValue is null ? schema.Without(CommentKeyword.KeywordName) : schema);
 
         Assert.Equal(
             JsonSchema.Parse(
@@ -101,7 +101,7 @@ public class TraversalTests
         var seen = new List<string>();
 
         order.Walk(
-            (JsonSchema _, in SchemaLocation location) =>
+            (JsonSchema _, in JsonSchemaLocation location) =>
             {
                 seen.Add($"{location.Depth}|{location.KeywordName}|{location.PropertyName}|{location.Index}|{location.ToPointer()}");
                 return WalkAction.Continue;
@@ -128,14 +128,14 @@ public class TraversalTests
         var stopped = new List<string>();
 
         order.Walk(
-            (JsonSchema _, in SchemaLocation location) =>
+            (JsonSchema _, in JsonSchemaLocation location) =>
             {
                 skipped.Add(location.ToPointer());
                 return location.PropertyName == "starter" ? WalkAction.SkipChildren : WalkAction.Continue;
             }
         );
         order.Walk(
-            (JsonSchema _, in SchemaLocation location) =>
+            (JsonSchema _, in JsonSchemaLocation location) =>
             {
                 stopped.Add(location.ToPointer());
                 return location.PropertyName == "main" ? WalkAction.Stop : WalkAction.Continue;
@@ -156,7 +156,7 @@ public class TraversalTests
         var visited = new List<string>();
 
         dish.Walk(
-            (JsonSchema _, in SchemaLocation location) =>
+            (JsonSchema _, in JsonSchemaLocation location) =>
             {
                 visited.Add(location.ToPointer());
                 return location.ToPointer() == stopAt ? WalkAction.Stop : WalkAction.Continue;
@@ -172,7 +172,7 @@ public class TraversalTests
         var dish = JsonSchema.Parse("""{"anyOf":[{"title":"Rice"},{"title":"Noodles","$comment":"Wide"},{"title":"Soup","$comment":"Hot"}]}""");
 
         var result = dish.Rewrite(
-            (JsonSchema schema, in SchemaLocation _) => schema.GetKeyword<CommentKeyword>() is null ? schema : schema.Without(CommentKeyword.KeywordName)
+            (JsonSchema schema, in JsonSchemaLocation _) => schema.GetKeyword<CommentKeyword>() is null ? schema : schema.Without(CommentKeyword.KeywordName)
         );
 
         Assert.Equal("""{"anyOf":[{"title":"Rice"},{"title":"Noodles"},{"title":"Soup"}]}""", result.ToJsonString());
@@ -194,7 +194,7 @@ public class TraversalTests
 
         string? deepest = null;
         schema.Walk(
-            (JsonSchema visited, in SchemaLocation location) =>
+            (JsonSchema visited, in JsonSchemaLocation location) =>
             {
                 Assert.Equal(location.ToPointer(), location.ToString());
                 if (location.Depth == depth)
@@ -208,7 +208,7 @@ public class TraversalTests
         );
 
         Assert.Equal(string.Concat(Enumerable.Repeat("/items", depth)), deepest);
-        Assert.Same(schema.Rewrite((JsonSchema visited, in SchemaLocation _) => visited), schema);
+        Assert.Same(schema.Rewrite((JsonSchema visited, in JsonSchemaLocation _) => visited), schema);
     }
 
     public static TheoryData<string> MetaSchemaFiles => MetaSchemas.FileNames();
@@ -221,7 +221,7 @@ public class TraversalTests
         var visited = 0;
 
         root.Walk(
-            (JsonSchema schema, in SchemaLocation location) =>
+            (JsonSchema schema, in JsonSchemaLocation location) =>
             {
                 visited++;
                 Assert.Same(schema, root.FindSubschema(location.ToPointer()));
@@ -246,10 +246,10 @@ public class TraversalTests
     [Fact]
     public void The_rewrite_goes_into_custom_subschema_keywords()
     {
-        var options = new JsonSchemaReaderOptions(JsonSchemaKeywordRegistry.CreateDraft202012().Add<GarnishKeyword>());
+        var options = new JsonSchemaReadOptions(JsonSchemaKeywordRegistry.CreateDraft202012().Add<GarnishKeyword>());
         var dish = JsonSchema.Parse("""{"x-garnish":{"type":"string","format":"uri"}}""", options);
 
-        var result = dish.Rewrite((JsonSchema schema, in SchemaLocation _) => schema.BooleanValue is null ? schema.Without(FormatKeyword.KeywordName) : schema);
+        var result = dish.Rewrite((JsonSchema schema, in JsonSchemaLocation _) => schema.BooleanValue is null ? schema.Without(FormatKeyword.KeywordName) : schema);
 
         Assert.IsType<GarnishKeyword>(result.Keywords[0]);
         Assert.Equal("""{"x-garnish":{"type":"string"}}""", result.ToJsonString());
@@ -259,7 +259,7 @@ public class TraversalTests
     public void A_rewriter_must_not_return_null()
     {
         var exception = Assert.Throws<InvalidOperationException>(
-            () => JsonSchema.Parse("""{"items":{"type":"string"}}""").Rewrite((JsonSchema schema, in SchemaLocation location) => location.IsRoot ? schema : null!)
+            () => JsonSchema.Parse("""{"items":{"type":"string"}}""").Rewrite((JsonSchema schema, in JsonSchemaLocation location) => location.IsRoot ? schema : null!)
         );
 
         Assert.Contains("/items", exception.Message, StringComparison.Ordinal);
@@ -282,24 +282,24 @@ public class TraversalTests
         return count;
     }
 
-    private struct IdentityRewriter : ISchemaRewriter
+    private struct IdentityRewriter : IJsonSchemaRewriter
     {
         public int Calls { get; private set; }
 
-        public JsonSchema Rewrite(JsonSchema schema, in SchemaLocation location)
+        public JsonSchema Rewrite(JsonSchema schema, in JsonSchemaLocation location)
         {
             Calls++;
             return schema;
         }
     }
 
-    private struct TypeCounter : ISchemaVisitor
+    private struct TypeCounter : IJsonSchemaVisitor
     {
         public int StringSchemas { get; private set; }
 
-        public WalkAction Visit(JsonSchema schema, in SchemaLocation location)
+        public WalkAction Visit(JsonSchema schema, in JsonSchemaLocation location)
         {
-            if (schema.Type == SchemaValueType.String)
+            if (schema.Type == JsonSchemaType.String)
             {
                 StringSchemas++;
             }
@@ -312,9 +312,9 @@ public class TraversalTests
     /// The shape that strict structured-output APIs for LLMs ask for: each object lists all its properties as required
     /// and allows no others, and there are no format or pattern assertions.
     /// </summary>
-    private readonly struct StrictStructuredOutput : ISchemaRewriter
+    private readonly struct StrictStructuredOutput : IJsonSchemaRewriter
     {
-        public JsonSchema Rewrite(JsonSchema schema, in SchemaLocation location)
+        public JsonSchema Rewrite(JsonSchema schema, in JsonSchemaLocation location)
         {
             if (schema.BooleanValue is not null)
             {
