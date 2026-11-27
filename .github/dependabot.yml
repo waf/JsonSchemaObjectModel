@@ -6,6 +6,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Benchmark-only packages. Update them by hand when you rerun the benchmarks.
+    ignore:
+      - dependency-name: "BenchmarkDotNet*"
+      - dependency-name: "JsonSchema.Net"
+      - dependency-name: "NJsonSchema*"
     groups:
       dotnet-dependencies:
         patterns:
