@@ -45,6 +45,21 @@ public static class MetaSchemas
 
     public static string Draft202012 { get; } = File.ReadAllText(Path.Combine(directory, "schema.json"));
 
+    /// <summary>
+    /// The file names of the draft 2020-12 meta-schemas. Use them as real schemas that hold <c>$vocabulary</c> and <c>$dynamicRef</c>.
+    /// </summary>
+    public static TheoryData<string> FileNames() =>
+        new(Directory.EnumerateFiles(directory, "*.json").Select(Path.GetFileName).Order(StringComparer.Ordinal)!);
+
+    /// <summary>
+    /// Loads a draft 2020-12 meta-schema by its file name.
+    /// </summary>
+    public static System.Text.Json.JsonElement Load(string fileName)
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, fileName)));
+        return document.RootElement.Clone();
+    }
+
     public static string Describe(ValidationResult result) =>
         string.Join(Environment.NewLine, result.ValidationErrors.Select(error => $"{error.InstanceLocation}: {error.ErrorMessage}"));
 }

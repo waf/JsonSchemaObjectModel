@@ -100,6 +100,51 @@ public class SchemaMapTests
     }
 
     [Fact]
+    public void The_dictionary_interfaces_give_the_same_entries_in_order()
+    {
+        var map = SchemaMap.Create(("lunch", JsonSchema.True), ("dinner", JsonSchema.False));
+        IReadOnlyDictionary<string, JsonSchema> dictionary = map;
+
+        Assert.Equal(["lunch", "dinner"], dictionary.Keys);
+        Assert.Equal([JsonSchema.True, JsonSchema.False], dictionary.Values);
+        Assert.Equal(["lunch", "dinner"], dictionary.Select(entry => entry.Key));
+        Assert.Equal(["lunch", "dinner"], Untyped(map.Keys));
+        Assert.Equal([JsonSchema.True, JsonSchema.False], Untyped(map.Values));
+        Assert.Equal<object>([KeyValuePair.Create("lunch", JsonSchema.True), KeyValuePair.Create("dinner", JsonSchema.False)], Untyped(map));
+        Assert.Equal(2, map.Values.Count);
+        Assert.True(map.ContainsKey("lunch"));
+        Assert.False(map.ContainsKey("brunch"));
+
+        //  Cast<T> would use the generic enumerator, so enumerate through the non-generic interface directly.
+        static List<object> Untyped(System.Collections.IEnumerable items)
+        {
+            var result = new List<object>();
+            var enumerator = items.GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                result.Add(enumerator.Current);
+            }
+
+            return result;
+        }
+    }
+
+    [Fact]
+    public void Maps_with_different_entries_are_not_equal()
+    {
+        var map = SchemaMap.Create(("lunch", JsonSchema.True), ("dinner", JsonSchema.False));
+
+        Assert.True(map.Equals(map));
+        Assert.True(map.Equals((object)SchemaMap.Create(("dinner", JsonSchema.False), ("lunch", JsonSchema.True))));
+        Assert.False(map.Equals((object)SchemaMap.Create(("lunch", JsonSchema.True), ("dinner", JsonSchema.True))));
+        Assert.False(map.Equals((object)SchemaMap.Create(("lunch", JsonSchema.True), ("brunch", JsonSchema.False))));
+        Assert.False(map.Equals(null));
+        Assert.False(map.Equals("lunch"));
+        Assert.Same(SchemaMap.Empty, SchemaMap.Create());
+        Assert.Same(SchemaMap.Empty, SchemaMap.Create(new List<KeyValuePair<string, JsonSchema>>()));
+    }
+
+    [Fact]
     public void Default_collections_are_empty()
     {
         Assert.Empty(default(SchemaMap.KeyCollection));
