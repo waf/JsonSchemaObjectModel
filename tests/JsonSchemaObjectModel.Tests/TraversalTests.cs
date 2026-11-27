@@ -146,6 +146,92 @@ public class TraversalTests
         Assert.Equal(["", "/properties/starter", "/properties/starter/items", "/properties/main"], stopped);
     }
 
+    [Theory]
+    [InlineData("/items", new[] { "", "/items" })]
+    [InlineData("/allOf/0", new[] { "", "/items", "/items/not", "/allOf/0" })]
+    [InlineData("/allOf/1/not", new[] { "", "/items", "/items/not", "/allOf/0", "/allOf/1", "/allOf/1/not" })]
+    public void A_stop_in_a_single_or_array_subschema_ends_the_whole_walk(string stopAt, string[] expected)
+    {
+        var dish = JsonSchema.Parse("""{"items":{"not":true},"allOf":[{"title":"Spicy"},{"not":false}],"contains":true}""");
+        var visited = new List<string>();
+
+        dish.Walk(
+            (JsonSchema _, in SchemaLocation location) =>
+            {
+                visited.Add(location.ToPointer());
+                return location.ToPointer() == stopAt ? WalkAction.Stop : WalkAction.Continue;
+            }
+        );
+
+        Assert.Equal(expected, visited);
+    }
+
+    [Fact]
+    public void A_rewrite_copies_a_subschema_array_only_from_the_first_change()
+    {
+        var dish = JsonSchema.Parse("""{"anyOf":[{"title":"Rice"},{"title":"Noodles","$comment":"Wide"},{"title":"Soup","$comment":"Hot"}]}""");
+
+        var result = dish.Rewrite(
+            (JsonSchema schema, in SchemaLocation _) => schema.GetKeyword<CommentKeyword>() is null ? schema : schema.Without(CommentKeyword.KeywordName)
+        );
+
+        Assert.Equal("""{"anyOf":[{"title":"Rice"},{"title":"Noodles"},{"title":"Soup"}]}""", result.ToJsonString());
+        var before = dish.GetKeyword<AnyOfKeyword>()!.Schemas;
+        var after = result.GetKeyword<AnyOfKeyword>()!.Schemas;
+        Assert.Same(before[0], after[0]);
+        Assert.NotSame(before[1], after[1]);
+    }
+
+    [Fact]
+    public void A_walk_deeper_than_the_initial_path_capacity_gives_correct_locations()
+    {
+        const int depth = 40;
+        JsonSchema schema = new JsonSchemaBuilder().Title("Garnish");
+        for (var level = 0; level < depth; level++)
+        {
+            schema = new JsonSchemaBuilder().Items(schema);
+        }
+
+        string? deepest = null;
+        schema.Walk(
+            (JsonSchema visited, in SchemaLocation location) =>
+            {
+                Assert.Equal(location.ToPointer(), location.ToString());
+                if (location.Depth == depth)
+                {
+                    deepest = location.ToString();
+                    Assert.Equal("""{"title":"Garnish"}""", visited.ToJsonString());
+                }
+
+                return WalkAction.Continue;
+            }
+        );
+
+        Assert.Equal(string.Concat(Enumerable.Repeat("/items", depth)), deepest);
+        Assert.Same(schema.Rewrite((JsonSchema visited, in SchemaLocation _) => visited), schema);
+    }
+
+    public static TheoryData<string> MetaSchemaFiles => MetaSchemas.FileNames();
+
+    [Theory]
+    [MemberData(nameof(MetaSchemaFiles))]
+    public void The_walk_visits_every_subschema_of_a_meta_schema(string file)
+    {
+        var root = JsonSchema.FromJsonElement(MetaSchemas.Load(file));
+        var visited = 0;
+
+        root.Walk(
+            (JsonSchema schema, in SchemaLocation location) =>
+            {
+                visited++;
+                Assert.Same(schema, root.FindSubschema(location.ToPointer()));
+                return WalkAction.Continue;
+            }
+        );
+
+        Assert.Equal(CountSchemas(root), visited);
+    }
+
     [Fact]
     public void A_struct_visitor_keeps_its_result()
     {

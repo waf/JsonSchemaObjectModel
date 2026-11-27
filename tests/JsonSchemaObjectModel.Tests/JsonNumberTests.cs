@@ -14,6 +14,8 @@ public class JsonNumberTests
         ["1e400", "10e399", "0.1e401"],
         ["1e-400", "0.1e-399"],
         ["1e100000000000000000", "10e99999999999999999"],
+        ["1e100000000000000000000000000000", "10e99999999999999999999999999999"],
+        ["1e-100000000000000000000000000000", "0.1e-99999999999999999999999999999"],
         ["18446744073709551616", "1.8446744073709551616e19"],
     ];
 
@@ -110,6 +112,44 @@ public class JsonNumberTests
     {
         Assert.Equal(expected, JsonNumber.Parse(text).TryGetInt64(out var actual));
         Assert.Equal(value, actual);
+    }
+
+    [Fact]
+    public void Conversions_of_numbers_from_dotnet_give_their_values()
+    {
+        JsonNumber portions = 3L;
+        JsonNumber price = 12.50m;
+        var weight = JsonNumber.From(0.25);
+
+        Assert.True(portions.IsInteger);
+        Assert.True(JsonNumber.From(2.00m).IsInteger);
+        Assert.False(price.IsInteger);
+        Assert.True(JsonNumber.From(2.0).IsInteger);
+        Assert.False(weight.IsInteger);
+
+        Assert.True(portions.TryGetDecimal(out var portionsDecimal));
+        Assert.Equal(3m, portionsDecimal);
+        Assert.True(price.TryGetDecimal(out var priceDecimal));
+        Assert.Equal(12.50m, priceDecimal);
+        Assert.True(portions.TryGetDouble(out var portionsDouble));
+        Assert.Equal(3.0, portionsDouble);
+        Assert.True(weight.TryGetDouble(out var weightDouble));
+        Assert.Equal(0.25, weightDouble);
+        Assert.True(portions.TryGetInt64(out var portionsInt64));
+        Assert.Equal(3L, portionsInt64);
+        Assert.True(JsonNumber.From(4.0).TryGetInt64(out var fromDouble));
+        Assert.Equal(4L, fromDouble);
+        Assert.False(price.TryGetInt64(out _));
+    }
+
+    [Fact]
+    public void Equality_operators_compare_values()
+    {
+        Assert.True(JsonNumber.From(1L) == JsonNumber.Parse("1.0"));
+        Assert.False(JsonNumber.From(1L) != JsonNumber.From(1.0m));
+        Assert.True(JsonNumber.From(1L) != JsonNumber.From(2L));
+        Assert.True(JsonNumber.From(1L).Equals((object)JsonNumber.From(1.0)));
+        Assert.False(JsonNumber.From(1L).Equals((object)1L));
     }
 
     [Fact]

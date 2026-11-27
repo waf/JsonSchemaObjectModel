@@ -28,6 +28,88 @@ public class EqualityTests
         AssertEqual(typed, reparsed);
     }
 
+    public static TheoryData<string> MetaSchemaFiles => MetaSchemas.FileNames();
+
+    [Theory]
+    [MemberData(nameof(MetaSchemaFiles))]
+    public void Typed_and_untyped_parses_of_a_meta_schema_are_equal_with_the_same_hash_code(string file)
+    {
+        var json = MetaSchemas.Load(file);
+
+        var typed = JsonSchema.FromJsonElement(json);
+        var untypedSchema = JsonSchema.FromJsonElement(json, untyped);
+
+        AssertEqual(typed, untypedSchema);
+        AssertEqual(untypedSchema, typed);
+        AssertEqual(typed, JsonSchema.Parse(typed.ToJsonString()));
+    }
+
+    [Theory]
+    [InlineData("""{"$vocabulary":{"https://example.com/menu":true}}""", """{"$vocabulary":{"https://example.com/menu":false}}""")]
+    [InlineData("""{"$vocabulary":{"https://example.com/menu":true}}""", """{"$vocabulary":{"https://example.com/drinks":true}}""")]
+    [InlineData("""{"$vocabulary":{"https://example.com/menu":true}}""", """{"$vocabulary":{"https://example.com/menu":true,"https://example.com/drinks":true}}""")]
+    public void Vocabularies_with_different_entries_are_not_equal(string left, string right)
+    {
+        Assert.NotEqual(JsonSchema.Parse(left), JsonSchema.Parse(right));
+        Assert.NotEqual(JsonSchema.Parse(right), JsonSchema.Parse(left));
+    }
+
+    [Fact]
+    public void Builder_constants_of_every_kind_equal_their_parsed_JSON()
+    {
+        var guid = Guid.Parse("3f2504e0-4f89-11d3-9a0c-0305e82c3301");
+        (JsonSchema Built, string Json)[] cases =
+        [
+            (new JsonSchemaBuilder().Const((string?)null), """{"const":null}"""),
+            (new JsonSchemaBuilder().Const(true), """{"const":true}"""),
+            (new JsonSchemaBuilder().Const(false), """{"const":false}"""),
+            (new JsonSchemaBuilder().Const("THB"), """{"const":"THB"}"""),
+            (new JsonSchemaBuilder().Const(2), """{"const":2.0}"""),
+            (new JsonSchemaBuilder().Const(12.50m), """{"const":12.5}"""),
+            (new JsonSchemaBuilder().Const(0.25), """{"const":25e-2}"""),
+            (new JsonSchemaBuilder().Const(JsonValues.From("Pad thai")), """{"const":"Pad thai"}"""),
+            (new JsonSchemaBuilder().Const(guid), """{"const":"3f2504e0-4f89-11d3-9a0c-0305e82c3301"}"""),
+        ];
+
+        foreach (var (built, json) in cases)
+        {
+            AssertEqual(built, JsonSchema.Parse(json));
+            AssertEqual(built, JsonSchema.Parse(json, untyped));
+            AssertEqual(JsonSchema.Parse(built.ToJsonString()), built);
+        }
+
+        for (var left = 0; left < cases.Length; left++)
+        {
+            for (var right = 0; right < cases.Length; right++)
+            {
+                Assert.Equal(left == right, cases[left].Built.Equals(cases[right].Built));
+            }
+        }
+    }
+
+    [Fact]
+    public void Built_string_enums_compare_by_their_values()
+    {
+        JsonSchema sizes = new JsonSchemaBuilder().Enum("S", "M", "L");
+
+        AssertEqual(sizes, new JsonSchemaBuilder().Enum("S", "M", "L"));
+        AssertEqual(sizes, JsonSchema.Parse("""{"enum":["S","M","L"]}"""));
+        Assert.NotEqual(sizes, new JsonSchemaBuilder().Enum("S", "M"));
+        Assert.NotEqual(sizes, new JsonSchemaBuilder().Enum("S", "M", "XL"));
+    }
+
+    [Fact]
+    public void Schemas_with_known_different_hash_codes_are_not_equal()
+    {
+        var curry = JsonSchema.Parse("""{"title":"Green curry"}""");
+        var soup = JsonSchema.Parse("""{"title":"Tom yum"}""");
+
+        //  Both hash codes are cached, so Equals can use them to return early.
+        Assert.NotEqual(curry.GetHashCode(), soup.GetHashCode());
+        Assert.False(curry.Equals(soup));
+        Assert.False(curry.Equals((object?)null));
+    }
+
     [Fact]
     public void Equality_agrees_with_DeepEquals_for_all_pairs_of_schemas_in_each_Test_Suite_file()
     {

@@ -4,7 +4,7 @@ using JsonSchemaObjectModel.Keywords;
 namespace JsonSchemaObjectModel.Tests;
 
 /// <summary>
-/// Every schema in the official test suite must parse, and must write back as the same JSON.
+/// Every schema in the official test suite, and every draft 2020-12 meta-schema, must parse and must write back as the same JSON.
 /// </summary>
 public class TestSuiteRoundTripTests
 {
@@ -25,11 +25,30 @@ public class TestSuiteRoundTripTests
         );
     }
 
+    public static TheoryData<string> MetaSchemaFiles => MetaSchemas.FileNames();
+
+    [Theory]
+    [MemberData(nameof(MetaSchemaFiles))]
+    public void Meta_schema_round_trips_with_typed_keywords(string file)
+    {
+        var original = MetaSchemas.Load(file);
+
+        var schema = JsonSchema.FromJsonElement(original);
+        using var written = JsonDocument.Parse(schema.ToJsonString());
+
+        Assert.True(JsonElement.DeepEquals(original, written.RootElement), $"expected: {original}{Environment.NewLine}actual:   {written.RootElement}");
+        AssertStandardKeywordsAreTyped(schema);
+    }
+
     [Theory]
     [MemberData(nameof(Cases))]
     public void Standard_keywords_parse_as_typed_keywords(string file, int group)
     {
-        var schema = JsonSchema.FromJsonElement(TestSuite.LoadSchema(file, group));
+        AssertStandardKeywordsAreTyped(JsonSchema.FromJsonElement(TestSuite.LoadSchema(file, group)));
+    }
+
+    private static void AssertStandardKeywordsAreTyped(JsonSchema schema)
+    {
         var standardNames = JsonSchemaKeywordRegistry.CreateDraft202012().KeywordNames.ToHashSet(StringComparer.Ordinal);
 
         foreach (var keyword in AllKeywords(schema))
