@@ -189,14 +189,40 @@ public class JsonSchemaTests
     [InlineData("""{"properties":{"a/b":{"items":[true]}}}""", "/properties/a~1b/items")]
     [InlineData("""{"prefixItems":[true,{"not":1}]}""", "/prefixItems/1/not")]
     [InlineData("""{"$defs":{"a":{"type":"string","type":"number"}}}""", null)]
+    [InlineData("""{"properties":{"a":true,"a":false}}""", "/properties/a")]
+    [InlineData("""{"$vocabulary":{"https://example.com/menu":true,"https://example.com/menu":false}}""", "/$vocabulary/https:~1~1example.com~1menu")]
+    [InlineData("""{"$vocabulary":{"a":1}}""", "/$vocabulary/a")]
+    [InlineData("""{"dependentRequired":{"dessert":["main"],"dessert":["drink"]}}""", "/dependentRequired/dessert")]
+    [InlineData("""{"dependentRequired":{"dessert":["main","main"]}}""", "/dependentRequired/dessert")]
+    [InlineData("""{"dependentRequired":{"dessert":"main"}}""", "/dependentRequired/dessert")]
     public void Invalid_keyword_values_fail_with_their_location(string json, string? location)
     {
-        var exception = Assert.ThrowsAny<JsonException>(() => JsonSchema.Parse(json));
+        //  Exactly JsonException, as Parse documents. An ArgumentException from a keyword constructor must not escape.
+        var exception = Assert.Throws<JsonException>(() => JsonSchema.Parse(json));
 
         if (location is not null)
         {
             Assert.Equal(location, exception.Path);
         }
+    }
+
+    [Theory]
+    [InlineData("""{"type":"string"} {"type":"number"}""")]
+    [InlineData("""{"type":"string"}}""")]
+    [InlineData("""{"type":"string"},""")]
+    public void Text_after_the_schema_fails(string json)
+    {
+        Assert.ThrowsAny<JsonException>(() => JsonSchema.Parse(json));
+        Assert.ThrowsAny<JsonException>(() => JsonSchema.Parse(System.Text.Encoding.UTF8.GetBytes(json)));
+    }
+
+    [Fact]
+    public void Whitespace_around_the_schema_is_accepted()
+    {
+        const string json = " \n{\"type\":\"string\"}\t ";
+
+        Assert.Equal("""{"type":"string"}""", JsonSchema.Parse(json).ToJsonString());
+        Assert.Equal("""{"type":"string"}""", JsonSchema.Parse(System.Text.Encoding.UTF8.GetBytes(json)).ToJsonString());
     }
 
     [Fact]

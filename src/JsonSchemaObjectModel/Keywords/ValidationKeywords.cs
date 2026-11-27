@@ -586,6 +586,10 @@ public sealed class DependentRequiredKeyword : IJsonSchemaKeyword, IKeywordValue
         Dependencies = new ReadOnlyDictionary<string, ImmutableArray<string>>(ordered);
     }
 
+    //  The reader has already checked the names and the arrays, so it gives its dictionary without a copy.
+    internal DependentRequiredKeyword(OrderedDictionary<string, ImmutableArray<string>> uniqueDependencies) =>
+        Dependencies = new ReadOnlyDictionary<string, ImmutableArray<string>>(uniqueDependencies);
+
     /// <inheritdoc/>
     public string Name => KeywordName;
 

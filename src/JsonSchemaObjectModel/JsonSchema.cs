@@ -21,8 +21,6 @@ namespace JsonSchemaObjectModel;
 [JsonConverter(typeof(JsonSchemaConverter))]
 public sealed partial class JsonSchema : IEquatable<JsonSchema>
 {
-    private const int MaxStackBytes = 1024;
-
     [ThreadStatic]
     private static PooledJsonWriter? cachedWriter;
 
@@ -78,41 +76,18 @@ public sealed partial class JsonSchema : IEquatable<JsonSchema>
     public static JsonSchema Parse(string json, JsonSchemaReaderOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(json);
-        var maxLength = Encoding.UTF8.GetMaxByteCount(json.Length);
-        var rented = maxLength > MaxStackBytes ? ArrayPool<byte>.Shared.Rent(maxLength) : null;
-        try
-        {
-            var buffer = rented ?? stackalloc byte[MaxStackBytes];
-            var length = Encoding.UTF8.GetBytes(json, buffer);
-            return Parse(buffer[..length], options);
-        }
-        finally
-        {
-            if (rented is not null)
-            {
-                ArrayPool<byte>.Shared.Return(rented);
-            }
-        }
+
+        //  JsonElement.Parse gives an element that owns its memory. Keywords that keep JSON values then
+        //  reuse that memory, instead of copying each value into a document of its own.
+        return JsonSchemaReader.ReadRoot(JsonElement.Parse(json), options ?? JsonSchemaReaderOptions.Default);
     }
 
     /// <summary>
     /// Parses a schema from UTF-8 JSON text.
     /// </summary>
     /// <exception cref="JsonException">The text is not valid JSON, or it is not a valid schema.</exception>
-    public static JsonSchema Parse(ReadOnlySpan<byte> utf8Json, JsonSchemaReaderOptions? options = null)
-    {
-        var reader = new Utf8JsonReader(utf8Json);
-
-        //  ParseValue gives an element that owns its memory. Keywords that keep JSON values then
-        //  reuse that memory, instead of copying each value into a document of its own.
-        var element = JsonElement.ParseValue(ref reader);
-        if (reader.Read())
-        {
-            throw new JsonException("The text contains more than one JSON value.");
-        }
-
-        return JsonSchemaReader.ReadRoot(element, options ?? JsonSchemaReaderOptions.Default);
-    }
+    public static JsonSchema Parse(ReadOnlySpan<byte> utf8Json, JsonSchemaReaderOptions? options = null) =>
+        JsonSchemaReader.ReadRoot(JsonElement.Parse(utf8Json), options ?? JsonSchemaReaderOptions.Default);
 
     /// <summary>
     /// Reads a schema from a JSON element.
